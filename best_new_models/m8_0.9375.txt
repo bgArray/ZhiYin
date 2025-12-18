@@ -1,0 +1,222 @@
+C:\ProgramData\miniconda3\python.exe E:\文档_学习_高中\活动杂项\AiVocal\VocalPivotM2\VocalPivot\M8MultiLabel_CNN_LSTM_pytorch_dumper.py 
+使用设备: cpu
+开始加载数据...
+加载文件: multilabel_Chinese_ZH-Alto-1.npy, 样本数: 9021
+加载文件: multilabel_Chinese_ZH-Tenor-1.npy, 样本数: 9521
+数据加载完成，原始样本数: 18542
+
+原始数据标签统计:
+  -1: 13592 次
+  0: 2994376 次
+  1: 961724 次
+  2: 753627 次
+  3: 363820 次
+  4: 345262 次
+  5: 191493 次
+  6: 1629015 次
+
+开始实现标签均衡...
+标签均衡完成：原始样本数 18542，均衡后样本数 16738
+均衡后标签统计:
+  0: 2378517 次
+  1: 957349 次
+  2: 752057 次
+  3: 363820 次
+  4: 345262 次
+  5: 191493 次
+  6: 1629015 次
+
+训练集样本数: 13390, 测试集样本数: 3348
+
+开始预处理训练集...
+序列最大长度: 512
+  处理进度: 500/40170
+  处理进度: 1000/40170
+  处理进度: 1500/40170
+  处理进度: 2000/40170
+  处理进度: 2500/40170
+  处理进度: 3000/40170
+  处理进度: 3500/40170
+  处理进度: 4000/40170
+  处理进度: 4500/40170
+  处理进度: 5000/40170
+  处理进度: 5500/40170
+  处理进度: 6000/40170
+  处理进度: 6500/40170
+  处理进度: 7000/40170
+  处理进度: 7500/40170
+  处理进度: 8000/40170
+  处理进度: 8500/40170
+  处理进度: 9000/40170
+  处理进度: 9500/40170
+  处理进度: 10000/40170
+  处理进度: 10500/40170
+  处理进度: 11000/40170
+  处理进度: 11500/40170
+  处理进度: 12000/40170
+  处理进度: 12500/40170
+  处理进度: 13000/40170
+  处理进度: 13500/40170
+  处理进度: 14000/40170
+  处理进度: 14500/40170
+  处理进度: 15000/40170
+  处理进度: 15500/40170
+  处理进度: 16000/40170
+  处理进度: 16500/40170
+  处理进度: 17000/40170
+  处理进度: 17500/40170
+  处理进度: 18000/40170
+  处理进度: 18500/40170
+  处理进度: 19000/40170
+  处理进度: 19500/40170
+  处理进度: 20000/40170
+  处理进度: 20500/40170
+  处理进度: 21000/40170
+  处理进度: 21500/40170
+  处理进度: 22000/40170
+  处理进度: 22500/40170
+  处理进度: 23000/40170
+  处理进度: 23500/40170
+  处理进度: 24000/40170
+  处理进度: 24500/40170
+  处理进度: 25000/40170
+  处理进度: 25500/40170
+  处理进度: 26000/40170
+  处理进度: 26500/40170
+  处理进度: 27000/40170
+  处理进度: 27500/40170
+  处理进度: 28000/40170
+  处理进度: 28500/40170
+  处理进度: 29000/40170
+  处理进度: 29500/40170
+  处理进度: 30000/40170
+  处理进度: 30500/40170
+  处理进度: 31000/40170
+  处理进度: 31500/40170
+  处理进度: 32000/40170
+  处理进度: 32500/40170
+  处理进度: 33000/40170
+  处理进度: 33500/40170
+  处理进度: 34000/40170
+  处理进度: 34500/40170
+  处理进度: 35000/40170
+  处理进度: 35500/40170
+  处理进度: 36000/40170
+  处理进度: 36500/40170
+  处理进度: 37000/40170
+  处理进度: 37500/40170
+  处理进度: 38000/40170
+  处理进度: 38500/40170
+  处理进度: 39000/40170
+  处理进度: 39500/40170
+  处理进度: 40000/40170
+  处理进度: 40170/40170
+  合并批次数据...
+开始预处理测试集...
+  合并批次数据...
+预处理完成：训练集形状(40170, 512, 74), 测试集形状(3348, 512, 74), 标签数8
+
+标签映射:
+  0: 0
+  1: 1
+  2: 2
+  3: 3
+  4: 4
+  5: 5
+  6: 6
+  7: -1
+
+模型结构:
+LightweightMultiLabelCNNLSTM(
+  (conv1): Conv1d(74, 32, kernel_size=(5,), stride=(1,), padding=(2,))
+  (bn1): BatchNorm1d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (depthwise_conv): Conv1d(32, 32, kernel_size=(3,), stride=(1,), padding=(1,), groups=32)
+  (pointwise_conv): Conv1d(32, 64, kernel_size=(1,), stride=(1,))
+  (bn2): BatchNorm1d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (lstm): LSTM(64, 128, batch_first=True)
+  (lstm_dropout): Dropout(p=0.3, inplace=False)
+  (attention): Sequential(
+    (0): Linear(in_features=128, out_features=64, bias=True)
+    (1): Tanh()
+    (2): Linear(in_features=64, out_features=1, bias=True)
+  )
+  (shared_fc): Sequential(
+    (0): Linear(in_features=128, out_features=64, bias=True)
+    (1): ReLU()
+    (2): Dropout(p=0.4, inplace=False)
+  )
+  (label_classifiers): ModuleList(
+    (0-7): 8 x Linear(in_features=64, out_features=1, bias=True)
+  )
+  (relu): ReLU()
+)
+
+总参数数: 130,729
+可训练参数数: 130,729
+
+开始模型训练...
+Epoch 1/50 - Train Loss: 1.5615, Train Acc: 0.9187 - Val Loss: 1.4223, Val Acc: 0.9226
+  -> 保存最佳模型 (Val Loss: 1.4223, Val Acc: 0.9226)
+Epoch 2/50 - Train Loss: 1.3892, Train Acc: 0.9241 - Val Loss: 1.3314, Val Acc: 0.9251
+  -> 保存最佳模型 (Val Loss: 1.3314, Val Acc: 0.9251)
+Epoch 3/50 - Train Loss: 1.3299, Train Acc: 0.9259 - Val Loss: 1.3220, Val Acc: 0.9248
+  -> 保存最佳模型 (Val Loss: 1.3220, Val Acc: 0.9248)
+Epoch 4/50 - Train Loss: 1.2850, Train Acc: 0.9279 - Val Loss: 1.3867, Val Acc: 0.9221
+Epoch 5/50 - Train Loss: 1.2486, Train Acc: 0.9296 - Val Loss: 1.1978, Val Acc: 0.9309
+  -> 保存最佳模型 (Val Loss: 1.1978, Val Acc: 0.9309)
+Epoch 6/50 - Train Loss: 1.2221, Train Acc: 0.9310 - Val Loss: 1.1741, Val Acc: 0.9331
+  -> 保存最佳模型 (Val Loss: 1.1741, Val Acc: 0.9331)
+Epoch 7/50 - Train Loss: 1.1962, Train Acc: 0.9325 - Val Loss: 1.1714, Val Acc: 0.9331
+  -> 保存最佳模型 (Val Loss: 1.1714, Val Acc: 0.9331)
+Epoch 8/50 - Train Loss: 1.1738, Train Acc: 0.9340 - Val Loss: 1.1404, Val Acc: 0.9348
+  -> 保存最佳模型 (Val Loss: 1.1404, Val Acc: 0.9348)
+Epoch 9/50 - Train Loss: 1.1533, Train Acc: 0.9353 - Val Loss: 1.0979, Val Acc: 0.9376
+  -> 保存最佳模型 (Val Loss: 1.0979, Val Acc: 0.9376)
+Epoch 10/50 - Train Loss: 1.1309, Train Acc: 0.9368 - Val Loss: 1.1051, Val Acc: 0.9372
+Epoch 11/50 - Train Loss: 1.1097, Train Acc: 0.9382 - Val Loss: 1.0931, Val Acc: 0.9379
+  -> 保存最佳模型 (Val Loss: 1.0931, Val Acc: 0.9379)
+Epoch 12/50 - Train Loss: 1.0929, Train Acc: 0.9394 - Val Loss: 1.0629, Val Acc: 0.9400
+  -> 保存最佳模型 (Val Loss: 1.0629, Val Acc: 0.9400)
+Epoch 13/50 - Train Loss: 1.0741, Train Acc: 0.9405 - Val Loss: 1.1272, Val Acc: 0.9371
+Epoch 14/50 - Train Loss: 1.0593, Train Acc: 0.9416 - Val Loss: 1.0444, Val Acc: 0.9409
+  -> 保存最佳模型 (Val Loss: 1.0444, Val Acc: 0.9409)
+Epoch 15/50 - Train Loss: 1.0374, Train Acc: 0.9429 - Val Loss: 1.0601, Val Acc: 0.9408
+Epoch 16/50 - Train Loss: 1.0299, Train Acc: 0.9435 - Val Loss: 1.0600, Val Acc: 0.9406
+Epoch 17/50 - Train Loss: 1.0168, Train Acc: 0.9443 - Val Loss: 1.0227, Val Acc: 0.9427
+  -> 保存最佳模型 (Val Loss: 1.0227, Val Acc: 0.9427)
+Epoch 18/50 - Train Loss: 0.9909, Train Acc: 0.9460 - Val Loss: 1.0236, Val Acc: 0.9433
+Epoch 19/50 - Train Loss: 0.9843, Train Acc: 0.9463 - Val Loss: 1.0071, Val Acc: 0.9437
+  -> 保存最佳模型 (Val Loss: 1.0071, Val Acc: 0.9437)
+Epoch 20/50 - Train Loss: 0.9652, Train Acc: 0.9475 - Val Loss: 1.0190, Val Acc: 0.9441
+Epoch 21/50 - Train Loss: 0.9561, Train Acc: 0.9482 - Val Loss: 1.0186, Val Acc: 0.9447
+Epoch 22/50 - Train Loss: 0.9447, Train Acc: 0.9488 - Val Loss: 1.0513, Val Acc: 0.9433
+Epoch 23/50 - Train Loss: 0.9322, Train Acc: 0.9497 - Val Loss: 1.0367, Val Acc: 0.9426
+Epoch 24/50 - Train Loss: 0.8772, Train Acc: 0.9528 - Val Loss: 0.9330, Val Acc: 0.9485
+  -> 保存最佳模型 (Val Loss: 0.9330, Val Acc: 0.9485)
+Epoch 25/50 - Train Loss: 0.8588, Train Acc: 0.9539 - Val Loss: 0.9534, Val Acc: 0.9483
+Epoch 26/50 - Train Loss: 0.8466, Train Acc: 0.9546 - Val Loss: 0.9288, Val Acc: 0.9495
+  -> 保存最佳模型 (Val Loss: 0.9288, Val Acc: 0.9495)
+Epoch 27/50 - Train Loss: 0.8402, Train Acc: 0.9549 - Val Loss: 0.9583, Val Acc: 0.9487
+Epoch 28/50 - Train Loss: 0.8353, Train Acc: 0.9553 - Val Loss: 0.9316, Val Acc: 0.9496
+Epoch 29/50 - Train Loss: 0.8247, Train Acc: 0.9559 - Val Loss: 0.9257, Val Acc: 0.9504
+  -> 保存最佳模型 (Val Loss: 0.9257, Val Acc: 0.9504)
+Epoch 30/50 - Train Loss: 0.8166, Train Acc: 0.9564 - Val Loss: 0.9052, Val Acc: 0.9511
+  -> 保存最佳模型 (Val Loss: 0.9052, Val Acc: 0.9511)
+Epoch 31/50 - Train Loss: 0.8151, Train Acc: 0.9565 - Val Loss: 0.9371, Val Acc: 0.9494
+Epoch 32/50 - Train Loss: 0.8074, Train Acc: 0.9569 - Val Loss: 0.9222, Val Acc: 0.9501
+Epoch 33/50 - Train Loss: 0.7995, Train Acc: 0.9574 - Val Loss: 0.8994, Val Acc: 0.9515
+  -> 保存最佳模型 (Val Loss: 0.8994, Val Acc: 0.9515)
+Epoch 34/50 - Train Loss: 0.7978, Train Acc: 0.9575 - Val Loss: 0.9169, Val Acc: 0.9509
+Epoch 35/50 - Train Loss: 0.7874, Train Acc: 0.9581 - Val Loss: 0.9380, Val Acc: 0.9502
+Epoch 36/50 - Train Loss: 0.7820, Train Acc: 0.9584 - Val Loss: 0.9301, Val Acc: 0.9505
+Epoch 37/50 - Train Loss: 0.7791, Train Acc: 0.9586 - Val Loss: 0.9293, Val Acc: 0.9513
+Epoch 38/50 - Train Loss: 0.7477, Train Acc: 0.9603 - Val Loss: 0.9171, Val Acc: 0.9519
+
+早停触发，在第 38 轮停止训练
+最佳验证损失: 0.8994, 最佳验证准确率: 0.9515
+
+开始模型评估...
+测试集最终准确率: 0.9375, 测试集损失: 1.2671
+最终模型（final_multilabel_cnn_lstm_model_m8.pth）与标签映射（label_to_idx_m8.npy, label_to_idx_m8.json）保存完成
+
+进程已结束，退出代码为 0

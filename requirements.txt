@@ -1,0 +1,25 @@
+# 知音项目依赖
+
+# GUI框架
+PySide6>=6.4.0
+
+# 音频处理
+librosa>=0.9.2
+soundfile>=0.10.3
+
+# 深度学习
+torch>=1.12.0
+torchaudio>=0.12.0
+
+# 音源分离
+demucs>=3.0.0
+
+# 数据处理
+numpy>=1.21.0
+scipy>=1.7.0
+
+# 可视化
+matplotlib>=3.5.0
+
+# 其他工具
+tqdm>=4.62.0
