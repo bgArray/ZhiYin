@@ -175,6 +175,16 @@ class WaveformWidget(QWidget):
         # 绘制背景
         painter.fillRect(self.rect(), self.background_color)
 
+        # 如果有音频数据，计算音频结束位置并绘制黑底区域
+        if self.audio_data is not None and self.total_seconds > 0:
+            # 计算音频结束位置的x坐标
+            audio_end_x = self.total_seconds * self.zoom_level + self.offset_x
+            
+            # 如果音频结束位置在可见区域内，绘制黑底区域
+            if 0 <= audio_end_x <= self.width():
+                # 绘制黑底矩形
+                painter.fillRect(int(audio_end_x), 0, self.width() - int(audio_end_x), self.height(), Qt.black)
+
         # 绘制网格
         self._draw_grid(painter)
 
