@@ -12,6 +12,7 @@ class AudioProcessorThread(QThread):
 
     processing_complete = Signal(object, object, object, object, object, float)
     processing_error = Signal(str)
+    processing_progress = Signal(int, str)  # 进度百分比, 状态描述
 
     def __init__(
         self,
@@ -29,8 +30,11 @@ class AudioProcessorThread(QThread):
     def run(self):
         try:
             # 加载音频
+            self.processing_progress.emit(30, "正在加载音频文件...")
             y, sr = librosa.load(self.audio_path, sr=None)
             duration = librosa.get_duration(y=y, sr=sr)
+            
+            self.processing_progress.emit(40, "正在提取音频特征...")
 
             # 提取梅尔频谱图
             n_fft = 2048
@@ -46,6 +50,8 @@ class AudioProcessorThread(QThread):
             )
             mel_spectrogram_db = librosa.power_to_db(mel_spectrogram, ref=np.max)
             mel_sequence = mel_spectrogram_db.T
+            
+            self.processing_progress.emit(60, "正在处理音频数据...")
 
             # 调整维度
             if mel_sequence.shape[1] >= self.target_dim:
@@ -58,9 +64,13 @@ class AudioProcessorThread(QThread):
                     mode="constant",
                     constant_values=0.0,
                 )
+            
+            self.processing_progress.emit(70, "正在进行模型预测...")
 
             # 模型预测
             prob_matrix = self.model.predict(mel_sequence)
+            
+            self.processing_progress.emit(85, "正在计算时间戳...")
 
             # 计算时间戳
             frame_duration = hop_length / sr

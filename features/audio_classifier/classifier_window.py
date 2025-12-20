@@ -4,20 +4,52 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
+import os
+import json
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5 import NavigationToolbar2QT as NavigationToolbar
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QFileDialog, QSlider, QLabel, QSizePolicy,
     QSplitter, QFrame, QToolBar, QStatusBar, QDoubleSpinBox, QSpinBox, QMessageBox,
-    QCheckBox
+    QCheckBox, QProgressBar, QGroupBox, QTextEdit, QLineEdit
 )
 from PySide6.QtCore import Qt, QTimer
+
+
+def convert_numpy_types(obj):
+    """
+    递归转换numpy类型为Python原生类型，以便JSON序列化
+    
+    Args:
+        obj: 包含numpy类型的对象
+        
+    Returns:
+        转换后的对象，所有numpy类型都转换为Python原生类型
+    """
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return tuple(convert_numpy_types(item) for item in obj)
+    else:
+        return obj
 
 from core.base_window import BaseWindow
 from features.audio_classifier.waveform_widget import WaveformWidget
 from features.audio_classifier.model import AudioClassifierModel
 from features.audio_classifier.audio_processor import AudioProcessorThread
+from features.audio_classifier.lyrics_recognizer import LyricsRecognizerThread
+from features.audio_classifier.lyrics_tag_aligner import LyricsTagAligner
+from features.audio_classifier.progress_dialog import ProgressDialog
+from features.audio_classifier.lyrics_optimizer import LyricsOptimizerThread
 
 # 确保matplotlib能够显示中文
 plt.rcParams["font.family"] = ["SimHei", "WenQuanYi Micro Hei", "Heiti TC"]
@@ -45,6 +77,9 @@ class AudioClassifierWindow(BaseWindow):
         # 进度条相关变量
         self.progress_slider = None
         self.is_dragging_progress = False
+        
+        # 进度对话框
+        self.progress_dialog = None
         
         # 音频分类相关变量
         self.model = None
@@ -87,12 +122,26 @@ class AudioClassifierWindow(BaseWindow):
         self.waveform_widget.mouseMoved.connect(self._on_mouse_moved)
         self.waveform_widget.zoomChanged.connect(self._on_zoom_changed)
         self.waveform_widget.setMinimumHeight(200)  # 设置波形区域最小高度
+        self.waveform_widget.setMaximumHeight(250)  # 设置波形区域最大高度
         
-        # 下部分：分类结果
+        # 下部分：分类结果和歌词识别
+        results_container = QWidget()
+        results_layout = QVBoxLayout(results_container)
+        results_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # 分类结果 - 增加高度比例，使其更突出
         results_widget = self._create_results_widget()
+        results_widget.setMinimumHeight(300)  # 设置最小高度
+        results_layout.addWidget(results_widget, 3)  # 拉伸因子为3
         
+        # 歌词识别区域
+        lyrics_group = self._create_lyrics_group()
+        lyrics_group.setMaximumHeight(250)  # 限制最大高度
+        results_layout.addWidget(lyrics_group, 1)  # 拉伸因子为1
+        
+        # 结果显示区域
         main_splitter.addWidget(self.waveform_widget)
-        main_splitter.addWidget(results_widget)
+        main_splitter.addWidget(results_container)
         main_splitter.setSizes([300, 500])  # 调整比例，给分类结果更多空间
         main_splitter.setStretchFactor(0, 1)  # 波形区域拉伸因子
         main_splitter.setStretchFactor(1, 2)  # 分类结果区域拉伸因子
@@ -125,6 +174,47 @@ class AudioClassifierWindow(BaseWindow):
         self.stop_action = toolbar.addAction("停止")
         self.stop_action.triggered.connect(self._stop_playback)
         self.stop_action.setEnabled(False)
+        
+        toolbar.addSeparator()
+        
+        # 模型状态显示
+        self.model_status_action = toolbar.addAction("模型状态: 未加载")
+        self.model_status_action.setEnabled(False)  # 禁用点击
+        
+        toolbar.addSeparator()
+        
+        # 加载模型按钮
+        load_model_action = toolbar.addAction("加载模型")
+        load_model_action.triggered.connect(self._load_model)
+    
+    def _create_model_progress_group(self):
+        """创建模型加载进度区域"""
+        group = QGroupBox("模型状态")
+        layout = QVBoxLayout(group)
+        
+        # 模型状态显示
+        status_layout = QHBoxLayout()
+        status_layout.addWidget(QLabel("模型状态:"))
+        self.model_status_label = QLabel("未加载")
+        self.model_status_label.setStyleSheet("color: red; font-weight: bold;")
+        status_layout.addWidget(self.model_status_label)
+        status_layout.addStretch()
+        layout.addLayout(status_layout)
+        
+        # 模型加载进度条
+        self.model_progress_bar = QProgressBar()
+        self.model_progress_bar.setVisible(False)  # 初始隐藏
+        layout.addWidget(self.model_progress_bar)
+        
+        # 模型信息显示
+        info_layout = QHBoxLayout()
+        info_layout.addWidget(QLabel("模型信息:"))
+        self.model_info_label = QLabel("点击'加载模型'按钮开始")
+        info_layout.addWidget(self.model_info_label)
+        info_layout.addStretch()
+        layout.addLayout(info_layout)
+        
+        return group
     
     def _create_results_widget(self):
         """创建分类结果显示区域"""
@@ -280,6 +370,82 @@ class AudioClassifierWindow(BaseWindow):
                 self.label_checkboxes[label_name] = checkbox
                 self.label_checkboxes_layout.addWidget(checkbox)
     
+    def _create_lyrics_group(self):
+        """创建歌词识别区域"""
+        group = QGroupBox("歌词识别与优化")
+        layout = QVBoxLayout(group)
+        
+        # 歌曲信息输入区域
+        song_info_widget = QWidget()
+        song_info_layout = QHBoxLayout(song_info_widget)
+        song_info_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # 歌名输入
+        song_info_layout.addWidget(QLabel("歌名:"))
+        self.song_name_edit = QLineEdit()
+        self.song_name_edit.setPlaceholderText("可选，输入歌名可提高搜索准确性")
+        song_info_layout.addWidget(self.song_name_edit)
+        
+        # 歌手输入
+        song_info_layout.addWidget(QLabel("歌手:"))
+        self.artist_name_edit = QLineEdit()
+        self.artist_name_edit.setPlaceholderText("可选，输入歌手名可提高搜索准确性")
+        song_info_layout.addWidget(self.artist_name_edit)
+        
+        layout.addWidget(song_info_widget)
+        
+        # 识别选项
+        options_widget = QWidget()
+        options_layout = QHBoxLayout(options_widget)
+        options_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # 歌词优化选项
+        self.optimize_lyrics_checkbox = QCheckBox("启用歌词优化")
+        self.optimize_lyrics_checkbox.setChecked(True)  # 默认启用
+        self.optimize_lyrics_checkbox.setToolTip("通过联网搜索获取更准确的歌词")
+        options_layout.addWidget(self.optimize_lyrics_checkbox)
+        
+        # 保留咬字信息选项
+        self.preserve_pronunciation_checkbox = QCheckBox("保留咬字信息")
+        self.preserve_pronunciation_checkbox.setChecked(False)  # 默认不启用
+        self.preserve_pronunciation_checkbox.setToolTip("保留原始识别结果中的咬字信息，不强制转换为标准汉字")
+        options_layout.addWidget(self.preserve_pronunciation_checkbox)
+        
+        options_layout.addStretch()
+        layout.addWidget(options_widget)
+        
+        # 识别按钮
+        self.recognize_lyrics_btn = QPushButton("识别歌词")
+        self.recognize_lyrics_btn.clicked.connect(self._recognize_lyrics)
+        self.recognize_lyrics_btn.setEnabled(False)  # 初始禁用
+        layout.addWidget(self.recognize_lyrics_btn)
+        
+        # 歌词文本显示区域
+        self.lyrics_text = QTextEdit()
+        self.lyrics_text.setReadOnly(True)
+        self.lyrics_text.setMaximumHeight(150)
+        self.lyrics_text.setPlaceholderText("识别的歌词将显示在这里...")
+        layout.addWidget(self.lyrics_text)
+        
+        # 按钮区域
+        buttons_layout = QHBoxLayout()
+        
+        # 对齐结果按钮
+        self.align_lyrics_btn = QPushButton("对齐歌词与标签")
+        self.align_lyrics_btn.clicked.connect(self._align_lyrics_with_tags)
+        self.align_lyrics_btn.setEnabled(False)  # 初始禁用
+        buttons_layout.addWidget(self.align_lyrics_btn)
+        
+        # 优化歌词按钮
+        self.optimize_lyrics_btn = QPushButton("优化歌词")
+        self.optimize_lyrics_btn.clicked.connect(self._optimize_lyrics)
+        self.optimize_lyrics_btn.setEnabled(False)  # 初始禁用
+        buttons_layout.addWidget(self.optimize_lyrics_btn)
+        
+        layout.addLayout(buttons_layout)
+        
+        return group
+    
     def _create_controls_widget(self):
         """创建底部控制区域"""
         widget = QWidget()
@@ -316,17 +482,66 @@ class AudioClassifierWindow(BaseWindow):
     def _load_model(self):
         """加载分类模型"""
         try:
+            # 更新工具栏中的模型状态
+            self.model_status_action.setText("模型状态: 加载中...")
+            
+            # 创建进度对话框
+            self.progress_dialog = ProgressDialog(self, "加载模型", cancelable=False)
+            self.progress_dialog.show()
+            
+            # 更新进度
+            self.progress_dialog.update_progress(5, "正在初始化模型...")
             self.statusBar().showMessage("正在加载模型...")
+            
+            # 模拟初始化步骤
+            import time
+            time.sleep(0.2)  # 短暂延迟以显示初始化状态
+            
+            # 更新进度
+            self.progress_dialog.update_progress(15, "正在检查设备支持...")
+            
+            # 更新进度
+            self.progress_dialog.update_progress(25, "正在加载模型文件...")
+            
             self.model = AudioClassifierModel()
+            
+            # 更新进度
+            self.progress_dialog.update_progress(50, "正在加载标签映射...")
+            
             self.label_names = self.model.label_names
             self.label_to_idx = self.model.label_to_idx
             self.no_label_idx = self.model.no_label_idx
             self.device = self.model.device
-            self.statusBar().showMessage("模型加载完成")
+            
+            # 更新进度
+            self.progress_dialog.update_progress(75, "正在初始化UI组件...")
             
             # 模型加载后更新标签复选框
             self._init_label_checkboxes()
+            
+            # 更新进度
+            self.progress_dialog.update_progress(90, "正在准备可视化组件...")
+            
+            # 初始化图表
+            self._init_visualization()
+            
+            # 完成加载
+            self.progress_dialog.update_progress(100, "模型加载完成")
+            
+            # 更新工具栏中的模型状态
+            device_str = "GPU" if str(self.device) == "cuda" else "CPU"
+            self.model_status_action.setText(f"模型状态: 已加载 ({device_str}, {len(self.label_names)}标签)")
+            
+            # 延迟关闭进度对话框
+            self.progress_dialog.close_after_delay(500)
+            
+            self.statusBar().showMessage("模型加载完成")
         except Exception as e:
+            # 更新工具栏中的模型状态 - 错误状态
+            self.model_status_action.setText("模型状态: 加载失败")
+            
+            if self.progress_dialog:
+                self.progress_dialog.close()
             QMessageBox.critical(self, "错误", f"加载模型失败: {str(e)}")
             self.statusBar().showMessage("模型加载失败")
     
@@ -371,6 +586,11 @@ class AudioClassifierWindow(BaseWindow):
         if not self.model or not self.current_file:
             return
         
+        # 创建音频处理进度对话框
+        self.progress_dialog = ProgressDialog(self, "处理音频", cancelable=True)
+        self.progress_dialog.show()
+        
+        self.progress_dialog.update_progress(10, "正在初始化音频处理...")
         self.statusBar().showMessage("正在处理音频...")
         
         # 创建处理线程
@@ -384,12 +604,17 @@ class AudioClassifierWindow(BaseWindow):
         # 连接信号
         self.processing_thread.processing_complete.connect(self._on_processing_complete)
         self.processing_thread.processing_error.connect(self._on_processing_error)
+        self.processing_thread.processing_progress.connect(self._on_processing_progress)
         
         # 开始处理
+        self.progress_dialog.update_progress(20, "正在加载音频文件...")
         self.processing_thread.start()
     
     def _on_processing_complete(self, y, sr, mel_spectrogram_db, prob_matrix, time_stamps, duration):
         """处理完成回调"""
+        if self.progress_dialog:
+            self.progress_dialog.update_progress(90, "正在更新可视化...")
+        
         self.last_visual_data = {
             'y': y,
             'sr': sr,
@@ -402,12 +627,274 @@ class AudioClassifierWindow(BaseWindow):
         # 更新可视化
         self._update_visualization()
         
+        # 完成处理
+        if self.progress_dialog:
+            self.progress_dialog.update_progress(100, "音频处理完成")
+            self.progress_dialog.close_after_delay(1000)
+        
+        # 启用歌词识别按钮
+        self.recognize_lyrics_btn.setEnabled(True)
+        
         self.statusBar().showMessage("处理完成")
+    
+    def _on_processing_progress(self, value, status):
+        """处理进度更新"""
+        if self.progress_dialog:
+            self.progress_dialog.update_progress(value, status)
     
     def _on_processing_error(self, error_msg):
         """处理错误回调"""
+        if self.progress_dialog:
+            self.progress_dialog.close()
         QMessageBox.critical(self, "处理错误", f"音频处理失败: {error_msg}")
         self.statusBar().showMessage("处理失败")
+    
+    def _recognize_lyrics(self):
+        """识别歌词"""
+        if not self.current_file:
+            QMessageBox.warning(self, "警告", "请先加载音频文件")
+            return
+        
+        # 获取用户选择的选项
+        preserve_pronunciation = self.preserve_pronunciation_checkbox.isChecked()
+        
+        # 创建歌词识别线程
+        self.lyrics_thread = LyricsRecognizerThread(
+            self.current_file, 
+            preserve_pronunciation=preserve_pronunciation
+        )
+        
+        # 创建歌词识别进度对话框
+        self.progress_dialog = ProgressDialog(self, "识别歌词", cancelable=True)
+        self.progress_dialog.show()
+        
+        # 连接信号
+        self.lyrics_thread.recognition_progress.connect(self._on_lyrics_progress)
+        self.lyrics_thread.recognition_complete.connect(self._on_lyrics_complete)
+        self.lyrics_thread.recognition_error.connect(self._on_lyrics_error)
+        
+        # 重置进度和状态
+        self.progress_dialog.update_progress(0, "正在识别歌词...")
+        
+        # 开始识别
+        self.lyrics_thread.start()
+        
+        # 禁用识别按钮，启用取消按钮
+        self.recognize_lyrics_btn.setEnabled(False)
+        self.align_lyrics_btn.setEnabled(False)
+    
+    def _on_lyrics_progress(self, value, status):
+        """歌词识别进度更新"""
+        if self.progress_dialog:
+            self.progress_dialog.update_progress(value, status)
+    
+    def _on_lyrics_complete(self, lyrics_data):
+        """歌词识别完成回调"""
+        if self.progress_dialog:
+            self.progress_dialog.update_progress(100, "歌词识别完成")
+            self.progress_dialog.close_after_delay(1000)
+        
+        # 保存歌词数据
+        self.lyrics_data = lyrics_data
+        
+        # 显示歌词文本
+        if "text" in lyrics_data:
+            display_text = lyrics_data["text"]
+            
+            # 如果启用了保留咬字信息，同时显示原始识别结果
+            if lyrics_data.get("preserve_pronunciation", False) and "original_text" in lyrics_data:
+                display_text = f"识别结果（含咬字信息）:\n{display_text}\n\n原始识别结果:\n{lyrics_data['original_text']}"
+            
+            self.lyrics_text.setText(display_text)
+        
+        # 启用对齐按钮和优化按钮
+        self.align_lyrics_btn.setEnabled(True)
+        self.optimize_lyrics_btn.setEnabled(True)
+        
+        # 如果启用了歌词优化，自动执行优化
+        if self.optimize_lyrics_checkbox.isChecked():
+            # 延迟一点时间，让用户看到原始识别结果
+            QTimer.singleShot(1000, self._optimize_lyrics)
+        
+        # 重新启用识别按钮
+        self.recognize_lyrics_btn.setEnabled(True)
+        
+        self.statusBar().showMessage("歌词识别完成")
+    
+    def _on_lyrics_error(self, error_msg):
+        """歌词识别错误回调"""
+        if self.progress_dialog:
+            self.progress_dialog.close()
+        QMessageBox.critical(self, "识别错误", f"歌词识别失败: {error_msg}")
+        
+        # 重新启用识别按钮
+        self.recognize_lyrics_btn.setEnabled(True)
+        
+        self.statusBar().showMessage("歌词识别失败")
+    
+    def _align_lyrics_with_tags(self):
+        """对齐歌词与标签"""
+        if not hasattr(self, 'lyrics_data') or not self.lyrics_data:
+            QMessageBox.warning(self, "警告", "请先识别歌词")
+            return
+        
+        if not hasattr(self, 'last_visual_data') or not self.last_visual_data:
+            QMessageBox.warning(self, "警告", "请先处理音频")
+            return
+        
+        # 获取必要的数据
+        prob_matrix = self.last_visual_data['prob_matrix']
+        time_stamps = self.last_visual_data['time_stamps']
+        label_names = self.model.label_names
+        
+        # 创建对齐器
+        aligner = LyricsTagAligner()
+        
+        # 执行对齐
+        aligned_result = aligner.align_lyrics_with_tags(
+            self.lyrics_data, prob_matrix, time_stamps, label_names
+        )
+        
+        # 保存对齐结果
+        self.aligned_result = aligned_result
+        
+        # 询问用户是否保存结果
+        reply = QMessageBox.question(
+            self, "保存结果", "是否保存对齐结果到JSON文件？",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self._save_aligned_result()
+    
+    def _optimize_lyrics(self):
+        """优化歌词"""
+        if not hasattr(self, 'lyrics_data') or not self.lyrics_data:
+            QMessageBox.warning(self, "警告", "请先识别歌词")
+            return
+        
+        if not self.current_file:
+            QMessageBox.warning(self, "警告", "没有音频文件信息")
+            return
+        
+        # 准备歌曲信息
+        song_info = {
+            'song_name': self.song_name_edit.text().strip(),
+            'artist_name': self.artist_name_edit.text().strip()
+        }
+        
+        # 创建歌词优化线程
+        self.lyrics_optimizer_thread = LyricsOptimizerThread(
+            self.current_file, 
+            self.lyrics_data, 
+            song_info
+        )
+        
+        # 创建歌词优化进度对话框
+        self.progress_dialog = ProgressDialog(self, "优化歌词", cancelable=True)
+        self.progress_dialog.show()
+        
+        # 连接信号
+        self.lyrics_optimizer_thread.optimization_progress.connect(self._on_optimization_progress)
+        self.lyrics_optimizer_thread.optimization_complete.connect(self._on_optimization_complete)
+        self.lyrics_optimizer_thread.optimization_error.connect(self._on_optimization_error)
+        
+        # 重置进度和状态
+        self.progress_dialog.update_progress(0, "正在优化歌词...")
+        
+        # 开始优化
+        self.lyrics_optimizer_thread.start()
+        
+        # 禁用优化按钮
+        self.optimize_lyrics_btn.setEnabled(False)
+    
+    def _on_optimization_progress(self, value, status):
+        """歌词优化进度更新"""
+        if self.progress_dialog:
+            self.progress_dialog.update_progress(value, status)
+    
+    def _on_optimization_complete(self, optimized_result):
+        """歌词优化完成回调"""
+        if self.progress_dialog:
+            self.progress_dialog.update_progress(100, "歌词优化完成")
+            self.progress_dialog.close_after_delay(1000)
+        
+        # 保存优化后的歌词数据
+        self.optimized_lyrics_data = optimized_result
+        
+        # 更新歌词文本显示
+        if "text" in optimized_result:
+            self.lyrics_text.setText(optimized_result["text"])
+        
+        # 询问用户是否替换原始歌词数据
+        reply = QMessageBox.question(
+            self, "替换歌词", "是否使用优化后的歌词替换原始识别结果？",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self.lyrics_data = optimized_result
+        
+        # 重新启用优化按钮
+        self.optimize_lyrics_btn.setEnabled(True)
+        
+        self.statusBar().showMessage("歌词优化完成")
+    
+    def _on_optimization_error(self, error_msg):
+        """歌词优化错误回调"""
+        if self.progress_dialog:
+            self.progress_dialog.close()
+        QMessageBox.critical(self, "优化错误", f"歌词优化失败: {error_msg}")
+        
+        # 重新启用优化按钮
+        self.optimize_lyrics_btn.setEnabled(True)
+        
+        self.statusBar().showMessage("歌词优化失败")
+    
+    def _save_aligned_result(self):
+        """保存对齐结果到JSON文件"""
+        if not hasattr(self, 'aligned_result'):
+            QMessageBox.warning(self, "警告", "没有可保存的对齐结果")
+            return
+        
+        # 获取保存路径
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "保存对齐结果", 
+            f"{os.path.splitext(os.path.basename(self.current_file))[0]}_aligned.json",
+            "JSON文件 (*.json)"
+        )
+        
+        if file_path:
+            try:
+                import json
+                print(f"准备保存对齐结果到: {file_path}")
+                print(f"对齐结果类型: {type(self.aligned_result)}")
+                
+                # 验证对齐结果的结构
+                if isinstance(self.aligned_result, dict):
+                    print(f"对齐结果键: {list(self.aligned_result.keys())}")
+                    if "aligned_words" in self.aligned_result:
+                        print(f"对齐词数量: {len(self.aligned_result['aligned_words'])}")
+                
+                # 尝试序列化以提前发现问题
+                # 转换numpy类型为Python原生类型
+                serializable_result = convert_numpy_types(self.aligned_result)
+                json_str = json.dumps(serializable_result, ensure_ascii=False, indent=2)
+                print(f"JSON序列化成功，长度: {len(json_str)}")
+                
+                # 写入文件
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(json_str)
+                
+                print(f"文件保存成功，大小: {os.path.getsize(file_path)} 字节")
+                QMessageBox.information(self, "保存成功", f"对齐结果已保存到:\n{file_path}")
+                self.statusBar().showMessage("对齐结果已保存")
+            except Exception as e:
+                import traceback
+                error_msg = f"保存文件时出错:\n{str(e)}\n\n详细信息:\n{traceback.format_exc()}"
+                print(error_msg)
+                QMessageBox.critical(self, "保存失败", error_msg)
+                self.statusBar().showMessage("保存失败")
     
     def _update_visualization(self):
         """更新分类结果可视化"""
@@ -553,6 +1040,44 @@ class AudioClassifierWindow(BaseWindow):
             
             label_layout.addStretch()
             self.legend_content_layout.addWidget(label_widget)
+    
+    def _init_visualization(self):
+        """初始化可视化组件"""
+        # 确保图形已初始化
+        if not hasattr(self, 'figure'):
+            return
+            
+        # 清除当前图形
+        self.figure.clear()
+        
+        # 创建子图
+        ax = self.figure.add_subplot(111)
+        
+        # 设置灰色背景
+        self.figure.patch.set_facecolor('#3C3C3C')
+        ax.set_facecolor('#3C3C3C')
+        
+        # 设置基本属性
+        ax.set_xlabel('时间 (秒)', color='#E0E0E0')
+        ax.set_ylabel('概率', color='#E0E0E0')
+        ax.set_title('音频分类结果', color='#E0E0E0')
+        ax.set_xlim(0, 10)  # 默认显示10秒
+        ax.set_ylim(0, 1.05)
+        ax.grid(True, alpha=0.3, color='#444444')
+        
+        # 设置轴和文本颜色
+        ax.tick_params(colors='#E0E0E0')
+        for spine in ax.spines.values():
+            spine.set_color('#E0E0E0')
+        
+        # 调整子图布局
+        self.figure.subplots_adjust(bottom=0.15)
+        
+        # 刷新画布
+        self.canvas.draw()
+        
+        # 初始化外部图例
+        self._update_external_legend([])
     
     def _update_threshold(self, value):
         """更新分类阈值"""

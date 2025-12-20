@@ -84,8 +84,18 @@ class AudioClassifierModel:
         self.max_length = 512
         self.target_dim = 74
         
-        self._load_model()
+        # 先加载标签映射，确保有正确的标签信息
         self._load_label_mapping()
+        
+        # 然后加载模型，使用正确的标签数量
+        self._load_model()
+        
+        # 最后创建config属性以兼容现有代码
+        self.config = {
+            'label_names': self.label_names,
+            'max_length': self.max_length,
+            'target_dim': self.target_dim
+        }
     
     def _load_model(self):
         """加载模型"""

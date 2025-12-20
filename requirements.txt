@@ -23,3 +23,9 @@ matplotlib>=3.5.0
 
 # 其他工具
 tqdm>=4.62.0
+
+# 语音识别
+openai-whisper>=20231117
+
+# 简繁体转换
+opencc-python-reimplemented>=0.1.7
