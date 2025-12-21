@@ -276,6 +276,12 @@ class AudioClassifierWindow(BaseWindow):
         right_layout.setContentsMargins(5, 5, 5, 5)
         right_layout.setSpacing(10)
         
+        # 创建水平布局容器，用于放置图例和标签选择
+        horizontal_container = QWidget()
+        horizontal_layout = QHBoxLayout(horizontal_container)
+        horizontal_layout.setContentsMargins(0, 0, 0, 0)
+        horizontal_layout.setSpacing(10)
+        
         # 创建图例部分
         legend_container = QWidget()
         legend_layout = QVBoxLayout(legend_container)
@@ -295,7 +301,7 @@ class AudioClassifierWindow(BaseWindow):
         self.legend_content_layout.setSpacing(2)
         legend_layout.addWidget(self.legend_content)
         
-        right_layout.addWidget(legend_container)
+        horizontal_layout.addWidget(legend_container)
         
         # 创建标签选择部分
         label_container = QWidget()
@@ -320,38 +326,15 @@ class AudioClassifierWindow(BaseWindow):
         self._init_label_checkboxes()
         
         label_layout.addWidget(self.label_checkboxes_widget)
-        right_layout.addWidget(label_container)
+        horizontal_layout.addWidget(label_container)
+        
+        right_layout.addWidget(horizontal_container)
         
         # 将图表容器和右侧容器添加到水平布局
         main_layout.addWidget(chart_container, 7)  # 图表占70%空间
         main_layout.addWidget(right_container, 3)  # 右侧容器占30%空间
         
         layout.addWidget(main_container)
-        
-        # 创建水平布局，用于放置阈值控制
-        controls_layout = QHBoxLayout()
-        controls_layout.setSpacing(20)  # 添加间距
-        
-        # 阈值控制
-        threshold_widget = QWidget()
-        threshold_layout = QHBoxLayout(threshold_widget)
-        threshold_layout.setContentsMargins(0, 0, 0, 0)
-        threshold_layout.addWidget(QLabel("分类阈值:"))
-        
-        self.threshold_spinbox = QDoubleSpinBox()
-        self.threshold_spinbox.setRange(0.0, 1.0)
-        self.threshold_spinbox.setSingleStep(0.05)
-        self.threshold_spinbox.setValue(self.threshold)
-        self.threshold_spinbox.valueChanged.connect(self._update_threshold)
-        threshold_layout.addWidget(self.threshold_spinbox)
-        
-        controls_layout.addWidget(threshold_widget)
-        controls_layout.addStretch()
-        
-        controls_widget = QWidget()
-        controls_widget.setLayout(controls_layout)
-        controls_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)  # 固定高度
-        layout.addWidget(controls_widget)
         
         return widget
     
@@ -919,6 +902,9 @@ class AudioClassifierWindow(BaseWindow):
             ax.set_title('音频分类结果', color='#E0E0E0')
             ax.grid(True, alpha=0.3, color='#444444')
             
+            # 禁用matplotlib默认图例
+            ax.legend().set_visible(False) if ax.get_legend() else None
+            
             # 设置轴和文本颜色
             ax.tick_params(colors='#E0E0E0')
             for spine in ax.spines.values():
@@ -988,6 +974,9 @@ class AudioClassifierWindow(BaseWindow):
         ax.set_xlim(0, duration)
         ax.set_ylim(0, 1.05)
         ax.grid(True, alpha=0.3, color='#444444')
+        
+        # 禁用matplotlib默认图例
+        ax.legend().set_visible(False) if ax.get_legend() else None
         
         # 设置轴和文本颜色
         ax.tick_params(colors='#E0E0E0')
@@ -1068,6 +1057,9 @@ class AudioClassifierWindow(BaseWindow):
         ax.set_xlim(0, 10)  # 默认显示10秒
         ax.set_ylim(0, 1.05)
         ax.grid(True, alpha=0.3, color='#444444')
+        
+        # 禁用matplotlib默认图例
+        ax.legend().set_visible(False) if ax.get_legend() else None
         
         # 设置轴和文本颜色
         ax.tick_params(colors='#E0E0E0')

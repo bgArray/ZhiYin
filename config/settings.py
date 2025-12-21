@@ -4,7 +4,7 @@
 
 # 应用程序信息
 APP_NAME = "知音"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.4.0"
 APP_DESCRIPTION = "AI音频听觉功能集成软件"
 
 # 窗口默认设置
