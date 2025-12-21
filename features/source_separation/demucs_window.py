@@ -86,24 +86,6 @@ class DemucsWindow(BaseWindow):
         group = QGroupBox("分离设置")
         layout = QVBoxLayout(group)
         
-        # 模型选择
-        model_layout = QHBoxLayout()
-        model_layout.addWidget(QLabel("模型:"))
-        
-        self.model_combo = QComboBox()
-        self.model_combo.addItems([
-            "mdx_extra_q",  # 高质量模型
-            "mdx_extra",     # 高质量模型（较大）
-            "htdemucs",      # 通用模型
-            "htdemucs_ft",   # 微调模型
-            "htdemucs_6s",   # 6音源模型
-            "hdemucs_mmi"    # 多模型集成
-        ])
-        self.model_combo.setCurrentText("mdx_extra_q")
-        model_layout.addWidget(self.model_combo, 1)
-        
-        layout.addLayout(model_layout)
-        
         # 输出目录
         output_layout = QHBoxLayout()
         output_layout.addWidget(QLabel("输出目录:"))
@@ -228,14 +210,10 @@ class DemucsWindow(BaseWindow):
         self.status_label.setText("正在初始化...")
         self.results_text.clear()
         
-        # 获取选择的模型
-        model_name = self.model_combo.currentText()
-        
-        # 创建处理线程
+        # 创建处理线程，使用默认模型
         self.processing_thread = DemucsProcessorThread(
             self.current_file,
-            self.output_dir,
-            model_name
+            self.output_dir
         )
         
         # 连接信号

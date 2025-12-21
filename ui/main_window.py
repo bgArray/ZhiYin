@@ -122,6 +122,9 @@ class MainWindow(BaseWindow):
         elif feature_id == "source_separation":
             from features.source_separation.demucs_window import DemucsWindow
             window = DemucsWindow(self)
+        elif feature_id == "multi_audio_processor":
+            from features.audio_classifier.multi_audio_processor import MultiAudioProcessorWindow
+            window = MultiAudioProcessorWindow(self)
         else:
             return
         

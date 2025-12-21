@@ -16,11 +16,10 @@ class DemucsProcessorThread(QThread):
     processing_progress = Signal(int, str)  # 进度百分比, 状态描述
     processing_error = Signal(str)
 
-    def __init__(self, audio_path, output_dir, model_name="mdx_extra_q"):
+    def __init__(self, audio_path, output_dir):
         super().__init__()
         self.audio_path = audio_path
         self.output_dir = output_dir
-        self.model_name = model_name
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def run(self):
@@ -29,71 +28,58 @@ class DemucsProcessorThread(QThread):
             
             # 动态导入demucs
             try:
-                import demucs.pretrained
-                from demucs.apply import apply_model
-                from demucs.audio import save_audio
+                from demucs import separate
             except ImportError:
                 self.processing_error.emit("Demucs库未安装，请使用 pip install demucs 安装")
                 return
             
-            # 加载模型
-            model = demucs.pretrained.get_model(self.model_name)
-            model.to(self.device)
-            model.eval()
-            
-            self.processing_progress.emit(15, "正在加载音频文件...")
-            
-            # 加载音频文件
-            waveform, sample_rate = librosa.load(self.audio_path, sr=None, mono=False)
-            
-            # 如果是单声道，转换为立体声
-            if waveform.ndim == 1:
-                waveform = np.stack([waveform, waveform])
-            
-            # 转换为torch张量
-            waveform = torch.from_numpy(waveform).unsqueeze(0).to(self.device)
-            
             self.processing_progress.emit(25, "正在进行音源分离...")
             
-            # 应用模型进行分离
-            with torch.no_grad():
-                sources = apply_model(model, waveform)
+            # 使用demucs.separate进行分离，与您的原始代码类似
+            # 创建临时输出目录
+            temp_output = os.path.join(self.output_dir, "temp_demucs_output")
+            os.makedirs(temp_output, exist_ok=True)
             
-            self.processing_progress.emit(75, "正在保存分离结果...")
+            # 调用demucs分离
+            separate.main(["--out", temp_output, self.audio_path])
             
-            # 创建输出目录
-            os.makedirs(self.output_dir, exist_ok=True)
+            self.processing_progress.emit(75, "正在整理分离结果...")
             
-            # 保存分离的音源
+            # 获取分离后的文件
+            base_name = os.path.splitext(os.path.basename(self.audio_path))[0]
+            demucs_output_path = os.path.join(temp_output, "htdemucs", base_name)
+            
+            # 检查输出文件是否存在
+            if not os.path.exists(demucs_output_path):
+                self.processing_error.emit("分离失败：找不到输出文件")
+                return
+            
+            # 整理输出文件
             source_names = ["drums", "bass", "other", "vocals"]
             output_files = {}
-            base_name = os.path.splitext(os.path.basename(self.audio_path))[0]
             
-            for i, name in enumerate(source_names):
-                output_path = os.path.join(self.output_dir, f"{base_name}_{name}.wav")
-                
-                # 转换为numpy并保存
-                source_numpy = sources[0, i].cpu().numpy()
-                
-                # 确保数据在有效范围内
-                if np.max(np.abs(source_numpy)) > 0:
-                    source_numpy = source_numpy / np.max(np.abs(source_numpy)) * 0.9
-                
-                # 使用librosa保存
-                librosa.output.write_wav(output_path, source_numpy, sample_rate)
-                output_files[name] = output_path
+            for name in source_names:
+                source_file = os.path.join(demucs_output_path, f"{name}.wav")
+                if os.path.exists(source_file):
+                    # 移动到最终输出目录
+                    output_path = os.path.join(self.output_dir, f"{base_name}_{name}.wav")
+                    os.rename(source_file, output_path)
+                    output_files[name] = output_path
             
-            # 保存混合音轨（可选）
-            mix_output_path = os.path.join(self.output_dir, f"{base_name}_mix.wav")
-            librosa.output.write_wav(mix_output_path, waveform[0].cpu().numpy(), sample_rate)
-            output_files["mix"] = mix_output_path
+            # 清理临时目录
+            import shutil
+            shutil.rmtree(temp_output)
             
             self.processing_progress.emit(100, "音源分离完成")
+            
+            # 获取音频信息
+            waveform, sample_rate = librosa.load(self.audio_path, sr=None)
+            duration = len(waveform) / sample_rate
             
             # 返回结果
             result_info = {
                 "sample_rate": sample_rate,
-                "duration": waveform.shape[-1] / sample_rate,
+                "duration": duration,
                 "sources": source_names,
                 "output_files": output_files
             }

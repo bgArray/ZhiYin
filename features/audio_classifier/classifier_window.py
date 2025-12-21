@@ -49,7 +49,6 @@ from features.audio_classifier.audio_processor import AudioProcessorThread
 from features.audio_classifier.lyrics_recognizer import LyricsRecognizerThread
 from features.audio_classifier.lyrics_tag_aligner import LyricsTagAligner
 from features.audio_classifier.progress_dialog import ProgressDialog
-from features.audio_classifier.lyrics_optimizer import LyricsOptimizerThread
 
 # 确保matplotlib能够显示中文
 plt.rcParams["font.family"] = ["SimHei", "WenQuanYi Micro Hei", "Heiti TC"]
@@ -270,11 +269,17 @@ class AudioClassifierWindow(BaseWindow):
         
         self.canvas.draw()
         
-        # 创建图例容器（占30%空间）
+        # 创建右侧容器（占30%空间），包含图例和标签选择
+        right_container = QWidget()
+        right_container.setMaximumWidth(250)  # 限制右侧容器的最大宽度
+        right_layout = QVBoxLayout(right_container)
+        right_layout.setContentsMargins(5, 5, 5, 5)
+        right_layout.setSpacing(10)
+        
+        # 创建图例部分
         legend_container = QWidget()
-        legend_container.setMaximumWidth(250)  # 限制图例容器的最大宽度
         legend_layout = QVBoxLayout(legend_container)
-        legend_layout.setContentsMargins(5, 5, 5, 5)
+        legend_layout.setContentsMargins(0, 0, 0, 0)
         legend_layout.setSpacing(5)
         
         # 创建图例标题
@@ -290,13 +295,40 @@ class AudioClassifierWindow(BaseWindow):
         self.legend_content_layout.setSpacing(2)
         legend_layout.addWidget(self.legend_content)
         
-        # 将图表容器和图例容器添加到水平布局
+        right_layout.addWidget(legend_container)
+        
+        # 创建标签选择部分
+        label_container = QWidget()
+        label_layout = QVBoxLayout(label_container)
+        label_layout.setContentsMargins(0, 0, 0, 0)
+        label_layout.setSpacing(5)
+        
+        # 创建标签选择标题
+        label_title = QLabel("显示标签")
+        label_title.setStyleSheet("font-size: 12px; font-weight: bold;")
+        label_title.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)  # 固定高度
+        label_layout.addWidget(label_title)
+        
+        # 创建标签选择复选框容器
+        self.label_checkboxes = {}
+        self.label_checkboxes_widget = QWidget()
+        self.label_checkboxes_layout = QVBoxLayout(self.label_checkboxes_widget)
+        self.label_checkboxes_layout.setContentsMargins(0, 0, 0, 0)
+        self.label_checkboxes_layout.setSpacing(5)
+        
+        # 初始化标签复选框（将在模型加载后更新）
+        self._init_label_checkboxes()
+        
+        label_layout.addWidget(self.label_checkboxes_widget)
+        right_layout.addWidget(label_container)
+        
+        # 将图表容器和右侧容器添加到水平布局
         main_layout.addWidget(chart_container, 7)  # 图表占70%空间
-        main_layout.addWidget(legend_container, 3)  # 图例占30%空间
+        main_layout.addWidget(right_container, 3)  # 右侧容器占30%空间
         
         layout.addWidget(main_container)
         
-        # 创建水平布局，用于放置阈值控制和标签选择
+        # 创建水平布局，用于放置阈值控制
         controls_layout = QHBoxLayout()
         controls_layout.setSpacing(20)  # 添加间距
         
@@ -314,25 +346,6 @@ class AudioClassifierWindow(BaseWindow):
         threshold_layout.addWidget(self.threshold_spinbox)
         
         controls_layout.addWidget(threshold_widget)
-        
-        # 分类标签选择
-        label_widget = QWidget()
-        label_layout = QHBoxLayout(label_widget)
-        label_layout.setContentsMargins(0, 0, 0, 0)
-        label_layout.addWidget(QLabel("显示标签:"))
-        
-        # 创建标签选择复选框容器
-        self.label_checkboxes = {}
-        self.label_checkboxes_widget = QWidget()
-        self.label_checkboxes_layout = QHBoxLayout(self.label_checkboxes_widget)
-        self.label_checkboxes_layout.setContentsMargins(0, 0, 0, 0)
-        self.label_checkboxes_layout.setSpacing(10)
-        
-        # 初始化标签复选框（将在模型加载后更新）
-        self._init_label_checkboxes()
-        
-        label_layout.addWidget(self.label_checkboxes_widget)
-        controls_layout.addWidget(label_widget)
         controls_layout.addStretch()
         
         controls_widget = QWidget()
@@ -351,7 +364,7 @@ class AudioClassifierWindow(BaseWindow):
         
         # 如果标签名称尚未加载，则使用默认值
         if not self.label_names:
-            default_labels = ["语音", "音乐", "噪音", "静音", "其他"]
+            default_labels = ["真声", "混声", "假声", "气声", "咽音", "颤音", "滑音"]
             for label in default_labels:
                 checkbox = QCheckBox(label)
                 checkbox.setChecked(True)  # 默认全部选中
@@ -372,53 +385,13 @@ class AudioClassifierWindow(BaseWindow):
     
     def _create_lyrics_group(self):
         """创建歌词识别区域"""
-        group = QGroupBox("歌词识别与优化")
+        group = QGroupBox("歌词识别")
         layout = QVBoxLayout(group)
         
-        # 歌曲信息输入区域
-        song_info_widget = QWidget()
-        song_info_layout = QHBoxLayout(song_info_widget)
-        song_info_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # 歌名输入
-        song_info_layout.addWidget(QLabel("歌名:"))
-        self.song_name_edit = QLineEdit()
-        self.song_name_edit.setPlaceholderText("可选，输入歌名可提高搜索准确性")
-        song_info_layout.addWidget(self.song_name_edit)
-        
-        # 歌手输入
-        song_info_layout.addWidget(QLabel("歌手:"))
-        self.artist_name_edit = QLineEdit()
-        self.artist_name_edit.setPlaceholderText("可选，输入歌手名可提高搜索准确性")
-        song_info_layout.addWidget(self.artist_name_edit)
-        
-        layout.addWidget(song_info_widget)
-        
-        # 识别选项
-        options_widget = QWidget()
-        options_layout = QHBoxLayout(options_widget)
-        options_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # 歌词优化选项
-        self.optimize_lyrics_checkbox = QCheckBox("启用歌词优化")
-        self.optimize_lyrics_checkbox.setChecked(True)  # 默认启用
-        self.optimize_lyrics_checkbox.setToolTip("通过联网搜索获取更准确的歌词")
-        options_layout.addWidget(self.optimize_lyrics_checkbox)
-        
-        # 保留咬字信息选项
-        self.preserve_pronunciation_checkbox = QCheckBox("保留咬字信息")
-        self.preserve_pronunciation_checkbox.setChecked(False)  # 默认不启用
-        self.preserve_pronunciation_checkbox.setToolTip("保留原始识别结果中的咬字信息，不强制转换为标准汉字")
-        options_layout.addWidget(self.preserve_pronunciation_checkbox)
-        
-        options_layout.addStretch()
-        layout.addWidget(options_widget)
-        
-        # 识别按钮
-        self.recognize_lyrics_btn = QPushButton("识别歌词")
-        self.recognize_lyrics_btn.clicked.connect(self._recognize_lyrics)
-        self.recognize_lyrics_btn.setEnabled(False)  # 初始禁用
-        layout.addWidget(self.recognize_lyrics_btn)
+        # 歌词识别状态
+        self.lyrics_status_label = QLabel("等待音频处理完成后自动识别歌词...")
+        self.lyrics_status_label.setStyleSheet("color: #666666; font-style: italic;")
+        layout.addWidget(self.lyrics_status_label)
         
         # 歌词文本显示区域
         self.lyrics_text = QTextEdit()
@@ -426,23 +399,6 @@ class AudioClassifierWindow(BaseWindow):
         self.lyrics_text.setMaximumHeight(150)
         self.lyrics_text.setPlaceholderText("识别的歌词将显示在这里...")
         layout.addWidget(self.lyrics_text)
-        
-        # 按钮区域
-        buttons_layout = QHBoxLayout()
-        
-        # 对齐结果按钮
-        self.align_lyrics_btn = QPushButton("对齐歌词与标签")
-        self.align_lyrics_btn.clicked.connect(self._align_lyrics_with_tags)
-        self.align_lyrics_btn.setEnabled(False)  # 初始禁用
-        buttons_layout.addWidget(self.align_lyrics_btn)
-        
-        # 优化歌词按钮
-        self.optimize_lyrics_btn = QPushButton("优化歌词")
-        self.optimize_lyrics_btn.clicked.connect(self._optimize_lyrics)
-        self.optimize_lyrics_btn.setEnabled(False)  # 初始禁用
-        buttons_layout.addWidget(self.optimize_lyrics_btn)
-        
-        layout.addLayout(buttons_layout)
         
         return group
     
@@ -557,6 +513,10 @@ class AudioClassifierWindow(BaseWindow):
         if not file_path:
             return
         
+        self._open_audio_file_path(file_path)
+    
+    def _open_audio_file_path(self, file_path):
+        """通过文件路径直接打开音频文件"""
         self.current_file = file_path
         self.statusBar().showMessage(f"正在加载音频文件: {file_path}")
         
@@ -580,6 +540,12 @@ class AudioClassifierWindow(BaseWindow):
         else:
             QMessageBox.critical(self, "错误", "音频文件加载失败")
             self.statusBar().showMessage("音频文件加载失败")
+    
+    def get_aligned_data(self):
+        """获取对齐后的数据"""
+        if hasattr(self, 'aligned_result') and self.aligned_result:
+            return self.aligned_result
+        return None
     
     def _process_audio(self):
         """处理音频进行分类"""
@@ -632,10 +598,10 @@ class AudioClassifierWindow(BaseWindow):
             self.progress_dialog.update_progress(100, "音频处理完成")
             self.progress_dialog.close_after_delay(1000)
         
-        # 启用歌词识别按钮
-        self.recognize_lyrics_btn.setEnabled(True)
+        # 自动开始歌词识别
+        self._auto_recognize_lyrics()
         
-        self.statusBar().showMessage("处理完成")
+        self.statusBar().showMessage("处理完成，正在自动识别歌词...")
     
     def _on_processing_progress(self, value, status):
         """处理进度更新"""
@@ -648,6 +614,126 @@ class AudioClassifierWindow(BaseWindow):
             self.progress_dialog.close()
         QMessageBox.critical(self, "处理错误", f"音频处理失败: {error_msg}")
         self.statusBar().showMessage("处理失败")
+    
+    def _auto_recognize_lyrics(self):
+        """自动识别歌词"""
+        if not self.current_file:
+            return
+        
+        # 更新状态标签
+        self.lyrics_status_label.setText("正在自动识别歌词...")
+        self.lyrics_status_label.setStyleSheet("color: #0066CC; font-style: italic;")
+        
+        # 创建歌词识别线程
+        self.lyrics_thread = LyricsRecognizerThread(
+            self.current_file, 
+            preserve_pronunciation=False  # 默认不保留咬字信息
+        )
+        
+        # 连接信号
+        self.lyrics_thread.recognition_progress.connect(self._on_auto_lyrics_progress)
+        self.lyrics_thread.recognition_complete.connect(self._on_auto_lyrics_complete)
+        self.lyrics_thread.recognition_error.connect(self._on_auto_lyrics_error)
+        
+        # 开始识别
+        self.lyrics_thread.start()
+    
+    def _on_auto_lyrics_progress(self, value, status):
+        """自动歌词识别进度更新"""
+        self.lyrics_status_label.setText(f"正在识别歌词... {value}%")
+    
+    def _on_auto_lyrics_complete(self, lyrics_data):
+        """自动歌词识别完成回调"""
+        # 保存歌词数据
+        self.lyrics_data = lyrics_data
+        
+        # 更新状态标签
+        self.lyrics_status_label.setText("歌词识别完成，正在转换为简体中文...")
+        self.lyrics_status_label.setStyleSheet("color: #009900; font-style: italic;")
+        
+        # 显示歌词文本
+        if "text" in lyrics_data:
+            self.lyrics_text.setText(lyrics_data["text"])
+        
+        # 自动对齐歌词与标签
+        self._auto_align_lyrics_with_tags()
+        
+        # 更新状态栏
+        self.statusBar().showMessage("歌词识别与对齐完成")
+    
+    def _on_auto_lyrics_error(self, error_msg):
+        """自动歌词识别错误"""
+        self.lyrics_status_label.setText(f"歌词识别失败: {error_msg}")
+        self.lyrics_status_label.setStyleSheet("color: #CC0000; font-style: italic;")
+    
+
+    def _auto_align_lyrics_with_tags(self):
+        """自动对齐歌词与标签"""
+        if not hasattr(self, 'lyrics_data') or not self.lyrics_data:
+            return
+        
+        if not hasattr(self, 'last_visual_data') or not self.last_visual_data:
+            return
+        
+        try:
+            # 更新状态标签
+            self.lyrics_status_label.setText("正在对齐歌词与标签...")
+            self.lyrics_status_label.setStyleSheet("color: #0066CC; font-style: italic;")
+            
+            # 创建歌词标签对齐器
+            aligner = LyricsTagAligner()
+            
+            # 执行对齐
+            self.aligned_result = aligner.align_lyrics_with_tags(
+                self.lyrics_data,
+                self.last_visual_data['prob_matrix'],
+                self.last_visual_data['time_stamps'],
+                self.label_names
+            )
+            
+            # 自动保存对齐结果到JSON文件
+            self._save_aligned_result_to_json()
+            
+            # 更新状态标签
+            self.lyrics_status_label.setText("歌词识别与对齐完成，已自动保存JSON文件")
+            self.lyrics_status_label.setStyleSheet("color: #009900; font-style: italic;")
+            
+        except Exception as e:
+            print(f"歌词对齐失败: {e}")
+            # 更新状态标签
+            self.lyrics_status_label.setText(f"歌词对齐失败: {e}")
+            self.lyrics_status_label.setStyleSheet("color: #CC0000; font-style: italic;")
+    
+    def _save_aligned_result_to_json(self):
+        """自动保存对齐结果到JSON文件"""
+        if not hasattr(self, 'aligned_result') or not self.aligned_result:
+            return
+        
+        try:
+            # 获取音频文件路径和基本信息
+            audio_file = self.current_file
+            base_name = os.path.splitext(os.path.basename(audio_file))[0]
+            output_dir = os.path.dirname(audio_file)
+            
+            # 创建输出文件路径
+            output_file = os.path.join(output_dir, f"{base_name}_lyrics_alignment.json")
+            
+            # 准备保存的数据
+            save_data = {
+                "audio_file": audio_file,
+                "alignment_result": convert_numpy_types(self.aligned_result),
+                "label_names": self.label_names,
+                "label_to_idx": self.label_to_idx
+            }
+            
+            # 保存到JSON文件
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(save_data, f, ensure_ascii=False, indent=2)
+            
+            print(f"歌词对齐结果已保存到: {output_file}")
+            
+        except Exception as e:
+            print(f"保存歌词对齐结果失败: {e}")
     
     def _recognize_lyrics(self):
         """识别歌词"""
@@ -707,14 +793,8 @@ class AudioClassifierWindow(BaseWindow):
             
             self.lyrics_text.setText(display_text)
         
-        # 启用对齐按钮和优化按钮
+        # 启用对齐按钮
         self.align_lyrics_btn.setEnabled(True)
-        self.optimize_lyrics_btn.setEnabled(True)
-        
-        # 如果启用了歌词优化，自动执行优化
-        if self.optimize_lyrics_checkbox.isChecked():
-            # 延迟一点时间，让用户看到原始识别结果
-            QTimer.singleShot(1000, self._optimize_lyrics)
         
         # 重新启用识别按钮
         self.recognize_lyrics_btn.setEnabled(True)
@@ -767,89 +847,13 @@ class AudioClassifierWindow(BaseWindow):
         if reply == QMessageBox.Yes:
             self._save_aligned_result()
     
-    def _optimize_lyrics(self):
-        """优化歌词"""
-        if not hasattr(self, 'lyrics_data') or not self.lyrics_data:
-            QMessageBox.warning(self, "警告", "请先识别歌词")
-            return
-        
-        if not self.current_file:
-            QMessageBox.warning(self, "警告", "没有音频文件信息")
-            return
-        
-        # 准备歌曲信息
-        song_info = {
-            'song_name': self.song_name_edit.text().strip(),
-            'artist_name': self.artist_name_edit.text().strip()
-        }
-        
-        # 创建歌词优化线程
-        self.lyrics_optimizer_thread = LyricsOptimizerThread(
-            self.current_file, 
-            self.lyrics_data, 
-            song_info
-        )
-        
-        # 创建歌词优化进度对话框
-        self.progress_dialog = ProgressDialog(self, "优化歌词", cancelable=True)
-        self.progress_dialog.show()
-        
-        # 连接信号
-        self.lyrics_optimizer_thread.optimization_progress.connect(self._on_optimization_progress)
-        self.lyrics_optimizer_thread.optimization_complete.connect(self._on_optimization_complete)
-        self.lyrics_optimizer_thread.optimization_error.connect(self._on_optimization_error)
-        
-        # 重置进度和状态
-        self.progress_dialog.update_progress(0, "正在优化歌词...")
-        
-        # 开始优化
-        self.lyrics_optimizer_thread.start()
-        
-        # 禁用优化按钮
-        self.optimize_lyrics_btn.setEnabled(False)
+
     
-    def _on_optimization_progress(self, value, status):
-        """歌词优化进度更新"""
-        if self.progress_dialog:
-            self.progress_dialog.update_progress(value, status)
+
     
-    def _on_optimization_complete(self, optimized_result):
-        """歌词优化完成回调"""
-        if self.progress_dialog:
-            self.progress_dialog.update_progress(100, "歌词优化完成")
-            self.progress_dialog.close_after_delay(1000)
-        
-        # 保存优化后的歌词数据
-        self.optimized_lyrics_data = optimized_result
-        
-        # 更新歌词文本显示
-        if "text" in optimized_result:
-            self.lyrics_text.setText(optimized_result["text"])
-        
-        # 询问用户是否替换原始歌词数据
-        reply = QMessageBox.question(
-            self, "替换歌词", "是否使用优化后的歌词替换原始识别结果？",
-            QMessageBox.Yes | QMessageBox.No
-        )
-        
-        if reply == QMessageBox.Yes:
-            self.lyrics_data = optimized_result
-        
-        # 重新启用优化按钮
-        self.optimize_lyrics_btn.setEnabled(True)
-        
-        self.statusBar().showMessage("歌词优化完成")
+
     
-    def _on_optimization_error(self, error_msg):
-        """歌词优化错误回调"""
-        if self.progress_dialog:
-            self.progress_dialog.close()
-        QMessageBox.critical(self, "优化错误", f"歌词优化失败: {error_msg}")
-        
-        # 重新启用优化按钮
-        self.optimize_lyrics_btn.setEnabled(True)
-        
-        self.statusBar().showMessage("歌词优化失败")
+
     
     def _save_aligned_result(self):
         """保存对齐结果到JSON文件"""

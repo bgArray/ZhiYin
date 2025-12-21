@@ -70,6 +70,29 @@ class LyricsTagAligner:
             "aligned_words": []
         }
         
+        # 确保标签名称和概率矩阵的维度匹配
+        if len(label_names) != prob_matrix.shape[1]:
+            print(f"警告: 标签数量({len(label_names)})与概率矩阵列数({prob_matrix.shape[1]})不匹配")
+            # 如果标签数量不匹配，可能需要调整
+            # 这里我们假设概率矩阵的列对应于标签索引0-6（真声到滑音）
+            # 而label_names可能包含"说话"标签，其索引为-1
+            
+            # 创建一个映射，将UI标签索引映射到概率矩阵列索引
+            ui_to_prob_idx = {}
+            prob_idx = 0
+            for i, label_name in enumerate(label_names):
+                if label_name == "说话":
+                    ui_to_prob_idx[i] = -1  # 说话标签在概率矩阵中没有对应列
+                else:
+                    ui_to_prob_idx[i] = prob_idx
+                    prob_idx += 1
+            
+            # 如果调整后仍然不匹配，使用截断或填充
+            if prob_idx != prob_matrix.shape[1]:
+                print(f"调整后仍然不匹配，使用截断或填充")
+                min_labels = min(len(label_names), prob_matrix.shape[1])
+                label_names = label_names[:min_labels]
+        
         # 获取每个时间步的最高概率标签
         max_prob_indices = np.argmax(prob_matrix, axis=1)
         max_prob_values = np.max(prob_matrix, axis=1)
@@ -162,6 +185,18 @@ class LyricsTagAligner:
         """
         tag_counts = {}
         
+        # 创建UI标签索引到概率矩阵列索引的映射（如果需要）
+        ui_to_prob_idx = None
+        if len(label_names) > 7:  # 如果标签数量大于7，可能包含"说话"标签
+            ui_to_prob_idx = {}
+            prob_idx = 0
+            for i, label_name in enumerate(label_names):
+                if label_name == "说话":
+                    ui_to_prob_idx[i] = -1  # 说话标签在概率矩阵中没有对应列
+                else:
+                    ui_to_prob_idx[i] = prob_idx
+                    prob_idx += 1
+        
         # 统计每个标签出现的次数和概率总和
         for idx in indices:
             if idx < len(max_prob_indices):
@@ -169,7 +204,22 @@ class LyricsTagAligner:
                 prob_value = max_prob_values[idx]
                 
                 if prob_value >= self.prob_threshold:  # 只考虑概率大于阈值的标签
-                    label_name = label_names[label_idx] if label_idx < len(label_names) else f"Label_{label_idx}"
+                    # 处理标签索引映射
+                    if ui_to_prob_idx:
+                        # 如果有映射关系，需要找到UI标签索引
+                        ui_label_idx = None
+                        for ui_idx, prob_idx in ui_to_prob_idx.items():
+                            if prob_idx == label_idx:
+                                ui_label_idx = ui_idx
+                                break
+                        
+                        if ui_label_idx is not None and ui_label_idx < len(label_names):
+                            label_name = label_names[ui_label_idx]
+                        else:
+                            label_name = f"Label_{label_idx}"
+                    else:
+                        # 没有映射关系，直接使用标签索引
+                        label_name = label_names[label_idx] if label_idx < len(label_names) else f"Label_{label_idx}"
                     
                     if label_name not in tag_counts:
                         tag_counts[label_name] = {

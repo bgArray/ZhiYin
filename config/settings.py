@@ -37,5 +37,10 @@ FEATURE_MODULES = {
         "name": "音源分离",
         "description": "使用Demucs进行人声和乐器分离",
         "icon": "separator"
+    },
+    "multi_audio_processor": {
+        "name": "多音频处理器",
+        "description": "同时处理多个音频文件并进行声乐技术分析",
+        "icon": "multi_audio"
     }
 }

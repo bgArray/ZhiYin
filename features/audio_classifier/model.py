@@ -122,36 +122,34 @@ class AudioClassifierModel:
         """加载标签映射"""
         if not os.path.exists(self.label_mapping_path):
             # 如果标签映射文件不存在，使用默认标签
-            self.label_names = [f"标签_{i}" for i in range(8)]
+            self.label_names = ["说话", "真声", "混声", "假声", "气声", "咽音", "颤音", "滑音"]
             self.label_to_idx = {name: i for i, name in enumerate(self.label_names)}
             self.idx_to_label = {i: name for i, name in enumerate(self.label_names)}
-            self.no_label_idx = 0  # 假设第一个标签是无标签
+            self.no_label_idx = None  # 没有无标签
             return
         
         try:
             with open(self.label_mapping_path, 'r', encoding='utf-8') as f:
                 self.label_to_idx = json.load(f)
             
-            self.idx_to_label = {v: k for k, v in self.label_to_idx.items()}
-            self.label_names = list(self.label_to_idx.keys())
+            # 过滤掉-1的标签（说话），因为它不是真正的声乐技术标签
+            filtered_labels = {k: v for k, v in self.label_to_idx.items() if v >= 0}
             
-            # 查找"无标签"或"无"的索引
-            for name, idx in self.label_to_idx.items():
-                if "无" in name:
-                    self.no_label_idx = idx
-                    break
+            # 按索引排序
+            sorted_labels = sorted(filtered_labels.items(), key=lambda x: x[1])
+            self.label_names = [name for name, idx in sorted_labels]
+            self.idx_to_label = {idx: name for name, idx in sorted_labels}
             
-            # 如果没有找到无标签，则使用第一个标签
-            if self.no_label_idx is None:
-                self.no_label_idx = 0
+            # 没有无标签
+            self.no_label_idx = None
                 
         except Exception as e:
             print(f"加载标签映射失败: {e}")
             # 使用默认标签
-            self.label_names = [f"标签_{i}" for i in range(8)]
+            self.label_names = ["说话", "真声", "混声", "假声", "气声", "咽音", "颤音", "滑音"]
             self.label_to_idx = {name: i for i, name in enumerate(self.label_names)}
             self.idx_to_label = {i: name for i, name in enumerate(self.label_names)}
-            self.no_label_idx = 0
+            self.no_label_idx = None
     
     def predict(self, mel_sequence):
         """对音频序列进行预测"""
