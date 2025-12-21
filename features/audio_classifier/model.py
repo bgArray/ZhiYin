@@ -9,6 +9,18 @@ import os
 from config.settings import CLASSIFIER_MODEL_PATH, LABEL_MAPPING_PATH
 
 
+LABEL_MAPPING = {
+  "-1": "说话",
+  "0": "真声",
+  "1": "混声",
+  "2": "假声",
+  "3": "气声",
+  "4": "咽音",
+  "5": "颤音",
+  "6": "滑音"
+}
+
+
 class LightweightMultiLabelCNNLSTM(torch.nn.Module):
     """与M7训练脚本保持一致的模型定义"""
 
@@ -120,6 +132,7 @@ class AudioClassifierModel:
     
     def _load_label_mapping(self):
         """加载标签映射"""
+        global LABEL_MAPPING
         if not os.path.exists(self.label_mapping_path):
             # 如果标签映射文件不存在，使用默认标签
             self.label_names = ["说话", "真声", "混声", "假声", "气声", "咽音", "颤音", "滑音"]
@@ -139,6 +152,15 @@ class AudioClassifierModel:
             sorted_labels = sorted(filtered_labels.items(), key=lambda x: x[1])
             self.label_names = [name for name, idx in sorted_labels]
             self.idx_to_label = {idx: name for name, idx in sorted_labels}
+            # print(self.label_names)
+
+            # 标签翻译
+            ln = self.label_names
+            self.label_names = []
+            for i in ln:
+                self.label_names.append(LABEL_MAPPING.get(i))
+            # print(self.label_names)
+            del ln
             
             # 没有无标签
             self.no_label_idx = None
