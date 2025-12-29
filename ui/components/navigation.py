@@ -56,6 +56,8 @@ class FeatureCard(QPushButton):
         icon_label.setText("🎵")  # 使用emoji作为临时图标
         if self.feature_info.get("icon") == "multi_audio":
             icon_label.setText("🎶")  # 多音频处理器使用不同的图标
+        elif self.feature_info.get("icon") == "recorder":
+            icon_label.setText("🎙️")  # 录音机使用麦克风图标
         icon_label.setFont(QFont("Arial", 24))
         layout.addWidget(icon_label, 0, Qt.AlignCenter)
         

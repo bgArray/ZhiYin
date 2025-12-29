@@ -6,6 +6,7 @@ PySide6>=6.4.0
 # 音频处理
 librosa>=0.9.2
 soundfile>=0.10.3
+pyaudio>=0.2.11
 
 # 深度学习
 torch>=1.12.0

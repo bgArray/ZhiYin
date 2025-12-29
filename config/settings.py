@@ -42,5 +42,10 @@ FEATURE_MODULES = {
         "name": "多音频处理器",
         "description": "同时处理多个音频文件并进行声乐技术分析",
         "icon": "multi_audio"
+    },
+    "realtime_recorder": {
+        "name": "实时录音机",
+        "description": "实时录制音频并显示波形和基频分析",
+        "icon": "recorder"
     }
 }

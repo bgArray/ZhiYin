@@ -125,6 +125,9 @@ class MainWindow(BaseWindow):
         elif feature_id == "multi_audio_processor":
             from features.audio_classifier.multi_audio_processor import MultiAudioProcessorWindow
             window = MultiAudioProcessorWindow(self)
+        elif feature_id == "realtime_recorder":
+            from features.realtime_recorder.recorder_window import RecorderWindow
+            window = RecorderWindow(self)
         else:
             return
         
