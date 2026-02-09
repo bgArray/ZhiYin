@@ -1,0 +1,19 @@
+{
+  "0": 0,
+  "1": 1,
+  "2": 2,
+  "3": 3,
+  "4": 4,
+  "5": 5,
+  "6": 6,
+  "Breathy": 7,
+  "Chest": 8,
+  "Falsetto": 9,
+  "Glissando": 10,
+  "Head": 11,
+  "Mixed": 12,
+  "Normal": 13,
+  "Pharyngeal": 14,
+  "Vibrato": 15,
+  "-1": 16
+}
