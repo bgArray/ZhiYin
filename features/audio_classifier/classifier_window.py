@@ -108,6 +108,9 @@ class AudioClassifierWindow(BaseWindow):
         self.last_visual_data = None
         self.device = None
         self.threshold = 0.5
+        # 模型选择变量
+        self.use_enhanced_model = False  # 默认使用标准模型
+        self.use_pitch_position_judgment = False  # 默认不使用发生位置增强判断
 
         # 创建UI
         self._create_ui()
@@ -191,6 +194,20 @@ class AudioClassifierWindow(BaseWindow):
         self.stop_action = toolbar.addAction("停止")
         self.stop_action.triggered.connect(self._stop_playback)
         self.stop_action.setEnabled(False)
+
+        toolbar.addSeparator()
+
+        # 模型选择复选框
+        self.enhanced_model_checkbox = QCheckBox("使用增强模型")
+        self.enhanced_model_checkbox.setToolTip("使用更精准的M8增强模型进行识别")
+        self.enhanced_model_checkbox.stateChanged.connect(self._on_model_selection_changed)
+        toolbar.addWidget(self.enhanced_model_checkbox)
+        
+        # 发生位置增强判断复选框
+        self.pitch_position_checkbox = QCheckBox("使用发生位置增强判断")
+        self.pitch_position_checkbox.setToolTip("使用M6LSTM_CNN模型增强0/1/2标签的判断精度")
+        self.pitch_position_checkbox.stateChanged.connect(self._on_pitch_position_changed)
+        toolbar.addWidget(self.pitch_position_checkbox)
 
         toolbar.addSeparator()
 
@@ -444,6 +461,16 @@ class AudioClassifierWindow(BaseWindow):
 
         return widget
 
+    def _on_model_selection_changed(self, state):
+        """模型选择变化处理"""
+        self.use_enhanced_model = (state == Qt.Checked)
+        # 重新加载模型
+        self._load_model()
+    
+    def _on_pitch_position_changed(self, state):
+        """发生位置增强判断选择变化处理"""
+        self.use_pitch_position_judgment = (state == Qt.Checked)
+
     def _load_model(self):
         """加载分类模型"""
         try:
@@ -460,7 +487,6 @@ class AudioClassifierWindow(BaseWindow):
 
             # 模拟初始化步骤
             import time
-
             time.sleep(0.2)  # 短暂延迟以显示初始化状态
 
             # 更新进度
@@ -469,7 +495,30 @@ class AudioClassifierWindow(BaseWindow):
             # 更新进度
             self.progress_dialog.update_progress(25, "正在加载模型文件...")
 
-            self.model = AudioClassifierModel()
+            # 根据选择加载不同的模型
+            from config.settings import CLASSIFIER_MODEL_PATH, LABEL_MAPPING_PATH
+            import os
+
+            if self.use_enhanced_model:
+                # 使用增强模型
+                enhanced_model_path = "best_new_models/new/best_multilabel_cnn_lstm_model_m8_enhanced.pth"
+                if os.path.exists(enhanced_model_path):
+                    model_path = enhanced_model_path
+                    label_path = LABEL_MAPPING_PATH
+                else:
+                    # 如果增强模型不存在，回退到默认模型
+                    model_path = CLASSIFIER_MODEL_PATH
+                    label_path = LABEL_MAPPING_PATH
+                    QMessageBox.warning(self, "警告", "增强模型文件不存在，将使用默认模型")
+                    self.enhanced_model_checkbox.setChecked(False)
+                    self.use_enhanced_model = False
+            else:
+                # 使用默认模型
+                model_path = CLASSIFIER_MODEL_PATH
+                label_path = LABEL_MAPPING_PATH
+
+            # 加载模型
+            self.model = AudioClassifierModel(model_path=model_path, label_mapping_path=label_path)
 
             # 更新进度
             self.progress_dialog.update_progress(50, "正在加载标签映射...")
@@ -496,14 +545,15 @@ class AudioClassifierWindow(BaseWindow):
 
             # 更新工具栏中的模型状态
             device_str = "GPU" if str(self.device) == "cuda" else "CPU"
+            model_type = "增强模型" if self.use_enhanced_model else "标准模型"
             self.model_status_action.setText(
-                f"模型状态: 已加载 ({device_str}, {len(self.label_names)}标签)"
+                f"模型状态: 已加载 {model_type} ({device_str}, {len(self.label_names)}标签)"
             )
 
             # 延迟关闭进度对话框
             self.progress_dialog.close_after_delay(500)
 
-            self.statusBar().showMessage("模型加载完成")
+            self.statusBar().showMessage(f"{model_type}加载完成")
         except Exception as e:
             # 更新工具栏中的模型状态 - 错误状态
             self.model_status_action.setText("模型状态: 加载失败")
@@ -570,7 +620,8 @@ class AudioClassifierWindow(BaseWindow):
 
         # 创建处理线程
         self.processing_thread = AudioProcessorThread(
-            self.current_file, self.model, self.max_length, self.target_dim
+            self.current_file, self.model, self.max_length, self.target_dim,
+            use_pitch_position_judgment=self.use_pitch_position_judgment
         )
 
         # 连接信号

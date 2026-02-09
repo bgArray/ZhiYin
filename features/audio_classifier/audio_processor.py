@@ -20,12 +20,14 @@ class AudioProcessorThread(QThread):
         model,
         max_length=512,
         target_dim=74,
+        use_pitch_position_judgment=False,
     ):
         super().__init__()
         self.audio_path = audio_path
         self.model = model
         self.max_length = max_length
         self.target_dim = target_dim
+        self.use_pitch_position_judgment = use_pitch_position_judgment
 
     def run(self):
         try:
@@ -68,7 +70,7 @@ class AudioProcessorThread(QThread):
             self.processing_progress.emit(70, "正在进行模型预测...")
 
             # 模型预测
-            prob_matrix = self.model.predict(mel_sequence)
+            prob_matrix = self.model.predict(mel_sequence, use_pitch_position_judgment=self.use_pitch_position_judgment)
             
             self.processing_progress.emit(85, "正在计算时间戳...")
 
