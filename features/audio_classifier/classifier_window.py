@@ -569,7 +569,7 @@ class AudioClassifierWindow(BaseWindow):
     def _open_audio_file(self):
         """打开音频文件"""
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "选择音频文件", "", "音频文件 (*.wav *.mp3 *.flac *.ogg)"
+            self, "选择音频文件", "", "音频文件 (*.wav *.mp3 *.m4a *.flac *.ogg)"
         )
 
         if not file_path:
@@ -678,26 +678,12 @@ class AudioClassifierWindow(BaseWindow):
         self.statusBar().showMessage("处理失败")
 
     def _auto_recognize_lyrics(self):
-        """自动识别歌词"""
+        """自动识别歌词（已跳过，直接使用定时标签存储）"""
         if not self.current_file:
             return
 
-        # 更新状态标签
-        self.lyrics_status_label.setText("正在自动识别歌词...")
-        self.lyrics_status_label.setStyleSheet("color: #0066CC; font-style: italic;")
-
-        # 创建歌词识别线程
-        self.lyrics_thread = LyricsRecognizerThread(
-            self.current_file, preserve_pronunciation=False  # 默认不保留咬字信息
-        )
-
-        # 连接信号
-        self.lyrics_thread.recognition_progress.connect(self._on_auto_lyrics_progress)
-        self.lyrics_thread.recognition_complete.connect(self._on_auto_lyrics_complete)
-        self.lyrics_thread.recognition_error.connect(self._on_auto_lyrics_error)
-
-        # 开始识别
-        self.lyrics_thread.start()
+        # 直接使用定时标签存储，跳过歌词识别
+        self._store_tags_by_time_interval()
 
     def _on_auto_lyrics_progress(self, value, status):
         """自动歌词识别进度更新"""
@@ -808,10 +794,18 @@ class AudioClassifierWindow(BaseWindow):
                 # 获取当前时间点的概率
                 probs = prob_matrix[idx]
                 
+                # 确保probs是一维数组
+                import numpy as np
+                if hasattr(probs, 'ndim') and probs.ndim > 1:
+                    probs = probs.flatten()
+                
                 # 找出超过阈值的标签
                 active_tags = []
                 for i, prob in enumerate(probs):
-                    if i != self.no_label_idx and prob >= self.threshold:
+                    # 确保prob是标量
+                    if hasattr(prob, '__len__') and len(prob) > 1:
+                        prob = np.mean(prob)
+                    if i != self.no_label_idx and float(prob) >= self.threshold:
                         active_tags.append({
                             "label": self.label_names[i],
                             "probability": float(prob),
@@ -856,7 +850,7 @@ class AudioClassifierWindow(BaseWindow):
         except Exception as e:
             print(f"标签存储失败: {e}")
             # 更新状态标签
-            self.lyrics_status_label.setText(f"标签存储失败: {e}")
+            self.lyrics_status_label.setText(f"标签存储失败: {str(e)}")
             self.lyrics_status_label.setStyleSheet(
                 "color: #CC0000; font-style: italic;"
             )

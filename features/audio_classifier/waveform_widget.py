@@ -4,6 +4,7 @@
 
 import numpy as np
 import wave
+import librosa
 from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt, QRectF, QPointF, QSize, Signal, QPoint, QIODevice
 from PySide6.QtGui import QPainter, QPen, QColor, QBrush, QFont, QLinearGradient, QPixmap, QPainterPath
@@ -55,31 +56,44 @@ class WaveformWidget(QWidget):
     def load_audio(self, file_path):
         """加载音频文件并解析波形数据"""
         try:
-            with wave.open(file_path, 'rb') as wf:
-                self.channels = wf.getnchannels()
-                self.sample_rate = wf.getframerate()
-                self.sampwidth = wf.getsampwidth()
-                self.total_samples = wf.getnframes()
+            # 检查文件扩展名
+            import os
+            ext = os.path.splitext(file_path)[1].lower()
+            
+            if ext in ['.wav']:
+                # 使用wave模块加载WAV文件
+                with wave.open(file_path, 'rb') as wf:
+                    self.channels = wf.getnchannels()
+                    self.sample_rate = wf.getframerate()
+                    self.sampwidth = wf.getsampwidth()
+                    self.total_samples = wf.getnframes()
+                    self.total_seconds = self.total_samples / self.sample_rate
+
+                    # 读取音频数据
+                    frames = wf.readframes(self.total_samples)
+                    dtype = np.int16 if self.sampwidth == 2 else np.int8
+                    self.audio_data = np.frombuffer(frames, dtype=dtype)
+
+                    # 如果是立体声，取单声道
+                    if self.channels == 2:
+                        self.audio_data = self.audio_data[::2]
+
+                    # 归一化到[-1, 1]
+                    self.audio_data = self.audio_data / np.iinfo(dtype).max
+            else:
+                # 使用librosa加载其他格式（MP3, M4A等）
+                self.audio_data, self.sample_rate = librosa.load(file_path, sr=None, mono=True)
+                self.channels = 1
+                self.sampwidth = 2  # 默认使用16位
+                self.total_samples = len(self.audio_data)
                 self.total_seconds = self.total_samples / self.sample_rate
 
-                # 读取音频数据
-                frames = wf.readframes(self.total_samples)
-                dtype = np.int16 if self.sampwidth == 2 else np.int8
-                self.audio_data = np.frombuffer(frames, dtype=dtype)
+            # 配置音频格式和输出设备
+            self._setup_audio_output()
 
-                # 如果是立体声，取单声道
-                if self.channels == 2:
-                    self.audio_data = self.audio_data[::2]
-
-                # 归一化到[-1, 1]
-                self.audio_data = self.audio_data / np.iinfo(dtype).max
-
-                # 配置音频格式和输出设备
-                self._setup_audio_output()
-
-                # 重绘
-                self.update()
-                return True
+            # 重绘
+            self.update()
+            return True
         except Exception as e:
             print(f"加载音频失败: {e}")
             return False
