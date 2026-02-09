@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知音 - AI音频听觉功能集成软件</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 0;
+            text-align: center;
+            margin-bottom: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        section {
+            background: white;
+            padding: 40px;
+            margin-bottom: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        }
+        
+        h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 2rem;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+        
+        h3 {
+            color: #555;
+            margin: 20px 0 10px;
+            font-size: 1.3rem;
+        }
+        
+        .pdf-container {
+            width: 100%;
+            height: 800px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .feature-card {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            transition: transform 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .screenshots {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .screenshot-card {
+            text-align: center;
+        }
+        
+        .screenshot-card img {
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+        }
+        
+        .screenshot-card p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .download-section {
+            text-align: center;
+            padding: 40px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin: 30px 0;
+        }
+        
+        .download-btn {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: background 0.3s ease;
+            margin: 10px;
+        }
+        
+        .download-btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+        }
+        
+        footer {
+            text-align: center;
+            padding: 30px 0;
+            color: #666;
+            margin-top: 50px;
+        }
+        
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2rem;
+            }
+            
+            section {
+                padding: 20px;
+            }
+            
+            .pdf-container {
+                height: 600px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎵 知音 - AI音频听觉功能集成软件 🎵</h1>
+            <p>集成多种AI音频处理功能的软件，提供音频分类、音源分离等多种工具</p>
+        </header>
+        
+        <section>
+            <h2>项目介绍</h2>
+            <p>知音是一款集成多种AI音频处理功能的软件，旨在为用户提供专业级的音频分析和处理工具。通过先进的深度学习模型，知音能够对音频进行多标签分类、音源分离等操作，为音频处理工作提供强大的技术支持。</p>
+            
+            <h3>主要功能</h3>
+            <div class="features">
+                <div class="feature-card">
+                    <h4>🎼 音频分类</h4>
+                    <p>使用CNN-LSTM混合架构进行多标签分类，识别8种声乐技术标签，包括真声、混声、假声、气声等。</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🎤 音源分离</h4>
+                    <p>基于Demucs引擎的音源分离技术，可分离人声、贝斯、鼓点和其他乐器。</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🎧 实时录音</h4>
+                    <p>实时录制音频并显示波形和基频分析，支持多种音频格式。</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🧠 AI分析</h4>
+                    <p>专业的声乐技术评估，多维度分析音高、节奏、情感等特征。</p>
+                </div>
+            </div>
+        </section>
+        
+        <section>
+            <h2>项目论文</h2>
+            <p>以下是项目相关的学术论文，详细介绍了知音软件的技术架构和实现原理：</p>
+            <iframe src="v2.pdf" class="pdf-container" title="项目论文"></iframe>
+        </section>
+        
+        <section>
+            <h2>软件截图</h2>
+            <div class="screenshots">
+                <div class="screenshot-card">
+                    <img src="rep_pic/index.png" alt="项目主界面">
+                    <p>知音软件主界面 - 现代化的深色主题设计</p>
+                </div>
+                <div class="screenshot-card">
+                    <img src="rep_pic/classify.png" alt="音频分类功能">
+                    <p>音频分类功能 - 实时显示分类结果和波形</p>
+                </div>
+                <div class="screenshot-card">
+                    <img src="rep_pic/separate.png" alt="音源分离功能">
+                    <p>音源分离功能 - 支持多轨道分离</p>
+                </div>
+                <div class="screenshot-card">
+                    <img src="rep_pic/recorder.png" alt="实时录音功能">
+                    <p>实时录音功能 - 实时显示波形和分类结果</p>
+                </div>
+                <div class="screenshot-card">
+                    <img src="rep_pic/analysis.png" alt="AI分析功能">
+                    <p>AI分析功能 - 歌词识别和声乐技术评估</p>
+                </div>
+            </div>
+        </section>
+        
+        <div class="download-section">
+            <h2>下载中心</h2>
+            <p>点击下方按钮下载最新版本的知音软件：</p>
+            <a href="ZhiYin_1.6.2.zip" class="download-btn">📦 下载 v1.6.2</a>
+            <a href="v2.pdf" class="download-btn">📄 下载论文</a>
+        </div>
+        
+        <footer>
+            <p>&copy; 2026 知音项目. All rights reserved.</p>
+            <p>Made with ❤️ by bgArray</p>
+        </footer>
+    </div>
+</body>
+</html>
