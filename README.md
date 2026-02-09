@@ -5,9 +5,19 @@
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-1.12+-ee4c2c.svg)](https://pytorch.org)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.4.0-orange.svg)](https://github.com/yourusername/ZhiYin)
+[![Version](https://img.shields.io/badge/version-1.6.5-orange.svg)](https://github.com/yourusername/ZhiYin)
 
 *知音是一款集成多种AI音频处理功能的软件，提供音频分类、音源分离等多种工具，让音频处理变得简单而强大。*
+
+## 🖼️ 项目预览
+
+<div align="center">
+
+![项目主界面](rep_pic/index.png)
+
+*知音软件主界面 - 现代化的深色主题设计*
+
+</div>
 
 [![Demo](https://img.shields.io/badge/demo-在线演示-brightgreen.svg)](https://your-demo-link.com)
 [![Documentation](https://img.shields.io/badge/docs-文档-blue.svg)](https://your-docs-link.com)
@@ -43,6 +53,14 @@
 - 🔄 **多模型支持**: 标准模型和增强模型可选
 - 🎯 **发生位置增强**: 可选使用M6LSTM_CNN模型增强发声位置判断精度
 
+<div align="center">
+
+![音频分类](rep_pic/classify.png)
+
+*音频分类功能界面 - 实时显示分类结果和波形* 
+
+</div>
+
 ### 🎤 音源分离
 - 🎭 **Demucs引擎**: 基于最先进的音源分离技术
 - 🎸 **多轨道分离**: 人声、贝斯、鼓点、其他乐器分离
@@ -50,11 +68,27 @@
 - 📁 **批量处理**: 支持多文件同时处理
 - 🎧 **高质量输出**: 保持原始音频质量
 
+<div align="center">
+
+![音源分离](rep_pic/separate.png)
+
+*音源分离功能界面 - 支持多轨道分离* 
+
+</div>
+
 ### 🎤 实时录音
 - 🎯 **实时分类**: 录制过程中实时进行音频分类
 - 📊 **实时可视化**: 实时显示音频波形和分类结果
 - 🔄 **多格式支持**: 支持WAV、MP3等多种音频格式
 - 🎛️ **参数调节**: 可调节采样率、通道数等录音参数
+
+<div align="center">
+
+![实时录音](rep_pic/recorder.png)
+
+*实时录音功能界面 - 实时显示波形和分类结果* 
+
+</div>
 
 ### 🎨 界面体验
 - 🌙 **深色主题**: 现代化的深色界面设计
@@ -68,6 +102,14 @@
 - 🔍 **声乐技术分析**: 专业的声乐技术评估
 - 📊 **多维度评估**: 音高、节奏、情感等多维度分析
 - 📈 **自动保存**: 自动保存对齐结果到JSON文件
+
+<div align="center">
+
+![AI分析](rep_pic/analysis.png)
+
+*AI分析功能界面 - 歌词识别和声乐技术评估* 
+
+</div>
 
 ---
 
@@ -415,29 +457,27 @@ DARK_THEME = {
 
 ## 📝 更新日志
 
-### 🎉 v1.4.0 (最新版本)
+### 🎉 v1.6.5 (最新版本)
 
 #### ✨ 新增功能
-- 🧠 新增AI分析功能模块
-- 📝 集成Whisper语音识别
-- 🎵 实现歌词与音频精确对齐
-- 🔍 添加声乐技术分析
-- 📊 多维度音频评估
-- 🎤 新增实时录音功能
-- 🔄 新增多模型支持
-- 🎯 新增发生位置增强判断
+- 🎤 实时录音功能
+- 🔄 多模型支持
+- 🎯 发生位置增强判断
+- ⏰ 定时标签存储功能（歌词识别失败时自动启用）
 
 #### 🚀 功能优化
 - ⚡ 优化模型加载速度
 - 🎛️ 改进用户界面交互
 - 📈 增强可视化效果
 - 🔧 修复已知问题
+- 📁 改进文件路径处理，增强跨环境兼容性
 
 #### 🐛 问题修复
 - 🐛 修复音频分类阈值调节问题
 - 🐛 解决音源分离进度显示异常
 - 🐛 修复深色主题样式问题
 - 🐛 改进异常处理和错误提示
+- 🐛 修复模型文件路径处理问题
 
 ### 📜 历史版本
 

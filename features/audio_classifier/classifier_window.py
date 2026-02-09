@@ -499,23 +499,26 @@ class AudioClassifierWindow(BaseWindow):
             from config.settings import CLASSIFIER_MODEL_PATH, LABEL_MAPPING_PATH
             import os
 
+            # 获取当前文件所在目录
+            current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
             if self.use_enhanced_model:
                 # 使用增强模型
-                enhanced_model_path = "best_new_models/new/best_multilabel_cnn_lstm_model_m8_enhanced.pth"
+                enhanced_model_path = os.path.join(current_dir, "best_new_models/new/best_multilabel_cnn_lstm_model_m8_enhanced.pth")
                 if os.path.exists(enhanced_model_path):
                     model_path = enhanced_model_path
-                    label_path = LABEL_MAPPING_PATH
+                    label_path = os.path.join(current_dir, LABEL_MAPPING_PATH)
                 else:
                     # 如果增强模型不存在，回退到默认模型
-                    model_path = CLASSIFIER_MODEL_PATH
-                    label_path = LABEL_MAPPING_PATH
+                    model_path = os.path.join(current_dir, CLASSIFIER_MODEL_PATH)
+                    label_path = os.path.join(current_dir, LABEL_MAPPING_PATH)
                     QMessageBox.warning(self, "警告", "增强模型文件不存在，将使用默认模型")
                     self.enhanced_model_checkbox.setChecked(False)
                     self.use_enhanced_model = False
             else:
                 # 使用默认模型
-                model_path = CLASSIFIER_MODEL_PATH
-                label_path = LABEL_MAPPING_PATH
+                model_path = os.path.join(current_dir, CLASSIFIER_MODEL_PATH)
+                label_path = os.path.join(current_dir, LABEL_MAPPING_PATH)
 
             # 加载模型
             self.model = AudioClassifierModel(model_path=model_path, label_mapping_path=label_path)
@@ -723,10 +726,14 @@ class AudioClassifierWindow(BaseWindow):
         """自动歌词识别错误"""
         self.lyrics_status_label.setText(f"歌词识别失败: {error_msg}")
         self.lyrics_status_label.setStyleSheet("color: #CC0000; font-style: italic;")
+        # 歌词识别失败时，使用定时标签存储
+        self._store_tags_by_time_interval()
 
     def _auto_align_lyrics_with_tags(self):
         """自动对齐歌词与标签"""
         if not hasattr(self, "lyrics_data") or not self.lyrics_data:
+            # 如果没有歌词数据，使用定时标签存储
+            self._store_tags_by_time_interval()
             return
 
         if not hasattr(self, "last_visual_data") or not self.last_visual_data:
@@ -761,8 +768,95 @@ class AudioClassifierWindow(BaseWindow):
 
         except Exception as e:
             print(f"歌词对齐失败: {e}")
+            # 歌词对齐失败时，使用定时标签存储
+            self._store_tags_by_time_interval()
             # 更新状态标签
-            self.lyrics_status_label.setText(f"歌词对齐失败: {e}")
+            self.lyrics_status_label.setText(f"歌词对齐失败，已使用定时标签存储: {e}")
+            self.lyrics_status_label.setStyleSheet(
+                "color: #CC0000; font-style: italic;"
+            )
+
+    def _store_tags_by_time_interval(self):
+        """按照时间间隔存储声乐技术标签"""
+        if not hasattr(self, "last_visual_data") or not self.last_visual_data:
+            return
+
+        try:
+            # 更新状态标签
+            self.lyrics_status_label.setText("正在按照时间间隔存储声乐技术标签...")
+            self.lyrics_status_label.setStyleSheet(
+                "color: #0066CC; font-style: italic;"
+            )
+
+            # 获取数据
+            prob_matrix = self.last_visual_data["prob_matrix"]
+            time_stamps = self.last_visual_data["time_stamps"]
+            duration = self.last_visual_data.get("duration", time_stamps[-1] if time_stamps else 0)
+
+            # 定义时间间隔（秒）
+            time_interval = 0.5
+
+            # 存储标签的列表
+            tagged_intervals = []
+
+            # 按照时间间隔处理
+            current_time = 0
+            while current_time < duration:
+                # 找到当前时间对应的索引
+                idx = min(range(len(time_stamps)), key=lambda i: abs(time_stamps[i] - current_time))
+                
+                # 获取当前时间点的概率
+                probs = prob_matrix[idx]
+                
+                # 找出超过阈值的标签
+                active_tags = []
+                for i, prob in enumerate(probs):
+                    if i != self.no_label_idx and prob >= self.threshold:
+                        active_tags.append({
+                            "label": self.label_names[i],
+                            "probability": float(prob),
+                            "index": i
+                        })
+                
+                # 按概率排序
+                active_tags.sort(key=lambda x: x["probability"], reverse=True)
+                
+                # 存储当前时间间隔的标签
+                tagged_intervals.append({
+                    "start_time": float(current_time),
+                    "end_time": float(current_time + time_interval),
+                    "active_tags": active_tags,
+                    "most_likely_tag": active_tags[0]["label"] if active_tags else "无"
+                })
+                
+                # 移动到下一个时间间隔
+                current_time += time_interval
+
+            # 创建对齐结果
+            self.aligned_result = {
+                "tagged_intervals": tagged_intervals,
+                "time_interval": time_interval,
+                "duration": float(duration),
+                "total_intervals": len(tagged_intervals),
+                "created_by": "time_interval_based"
+            }
+
+            # 自动保存结果到JSON文件
+            self._save_aligned_result_to_json()
+
+            # 更新状态标签
+            self.lyrics_status_label.setText(f"按照时间间隔存储声乐技术标签完成，共存储 {len(tagged_intervals)} 个时间间隔的标签")
+            self.lyrics_status_label.setStyleSheet(
+                "color: #009900; font-style: italic;"
+            )
+
+            # 更新状态栏
+            self.statusBar().showMessage("标签存储完成")
+
+        except Exception as e:
+            print(f"标签存储失败: {e}")
+            # 更新状态标签
+            self.lyrics_status_label.setText(f"标签存储失败: {e}")
             self.lyrics_status_label.setStyleSheet(
                 "color: #CC0000; font-style: italic;"
             )
